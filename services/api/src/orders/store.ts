@@ -147,13 +147,6 @@ export async function confirmOrder(
   return order;
 }
 
-export function orderBelongsToCaller(
-  ownerUserId: unknown,
-  callerUserId: string,
-): boolean {
-  return typeof ownerUserId === "string" && ownerUserId === callerUserId;
-}
-
 export async function listOrders(userId: string): Promise<Order[]> {
   const result = await docClient.send(
     new QueryCommand({
@@ -185,9 +178,7 @@ export async function getOrderForUser(
       Limit: 2,
     }),
   );
-  const match = (result.Items ?? []).find((item) =>
-    orderBelongsToCaller(item.userId, userId),
-  );
+  const match = (result.Items ?? []).find((item) => item.userId === userId);
   if (!match) {
     return null;
   }

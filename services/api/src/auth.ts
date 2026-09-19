@@ -8,12 +8,7 @@ export type JwtClaims = {
   groups: string[];
 };
 
-type RequestStore = {
-  claims: JwtClaims | null;
-  requestId: string;
-};
-
-const storage = new AsyncLocalStorage<RequestStore>();
+const storage = new AsyncLocalStorage<JwtClaims | null>();
 
 function asString(value: unknown): string | undefined {
   if (typeof value === "string" && value.length > 0) {
@@ -22,7 +17,7 @@ function asString(value: unknown): string | undefined {
   return undefined;
 }
 
-export function parseGroups(value: unknown): string[] {
+function parseGroups(value: unknown): string[] {
   if (Array.isArray(value)) {
     return value.filter((item): item is string => typeof item === "string");
   }
@@ -82,18 +77,11 @@ export function runWithClaims<T>(
   claims: JwtClaims | null,
   fn: () => T,
 ): T {
-  return storage.run(
-    { claims, requestId: currentRequestId() ?? "test" },
-    fn,
-  );
+  return storage.run(claims, fn);
 }
 
 export function currentClaims(): JwtClaims | null {
-  return storage.getStore()?.claims ?? null;
-}
-
-export function currentRequestId(): string | undefined {
-  return storage.getStore()?.requestId;
+  return storage.getStore() ?? null;
 }
 
 export function requireUser(): JwtClaims {
@@ -118,17 +106,6 @@ export type AwsHandler = (
 ) => Promise<unknown>;
 
 export function withClaims(handler: AwsHandler): AwsHandler {
-  return async (event, context) => {
-    const requestId =
-      context &&
-      typeof context === "object" &&
-      "awsRequestId" in context &&
-      typeof context.awsRequestId === "string"
-        ? context.awsRequestId
-        : crypto.randomUUID();
-    return storage.run(
-      { claims: claimsFromEvent(event), requestId },
-      () => handler(event, context),
-    );
-  };
+  return async (event, context) =>
+    runWithClaims(claimsFromEvent(event), () => handler(event, context));
 }

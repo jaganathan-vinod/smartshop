@@ -7,23 +7,10 @@ import { registerAdminRoutes } from "./admin/routes.js";
 import { registerCartRoutes } from "./cart/routes.js";
 import { registerCatalogRoutes } from "./catalog/routes.js";
 import { registerIdentityRoutes } from "./identity/routes.js";
-import { logJson } from "./log.js";
 import { registerOrderRoutes } from "./orders/routes.js";
 import { registerQuoteRoutes } from "./pricing/routes.js";
 
 const app = new Hono();
-
-app.use(async (c, next) => {
-  const started = Date.now();
-  await next();
-  logJson({
-    msg: "request",
-    route: c.req.path,
-    method: c.req.method,
-    status: c.res.status,
-    ms: Date.now() - started,
-  });
-});
 
 app.get("/v1/health", (c) => {
   const body: HealthResponse = {
@@ -44,13 +31,7 @@ registerAdminRoutes(app);
 app.notFound((c) => c.json(apiError("NOT_FOUND", "Route not found"), 404));
 
 app.onError((error, c) => {
-  logJson({
-    msg: "error",
-    route: c.req.path,
-    method: c.req.method,
-    status: 500,
-    error: error instanceof Error ? error.name : "unknown",
-  });
+  console.error(error);
   return c.json(apiError("INTERNAL", "Unexpected error"), 500);
 });
 

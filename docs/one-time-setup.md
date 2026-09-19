@@ -127,8 +127,6 @@ npm run seed
 npm run verify:phase0    # now includes GET /v1/health
 ```
 
-Cognito admin group and premium toggle: [runbook.md](runbook.md).
-
 ---
 
 ## Do not

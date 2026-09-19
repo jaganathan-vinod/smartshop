@@ -3,10 +3,8 @@ import * as path from "node:path";
 import { execSync } from "node:child_process";
 import { DockerImage, Duration, RemovalPolicy, CfnOutput, Stack, StackProps } from "aws-cdk-lib";
 import * as cognito from "aws-cdk-lib/aws-cognito";
-import * as cloudwatch from "aws-cdk-lib/aws-cloudwatch";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as lambda from "aws-cdk-lib/aws-lambda";
-import * as logs from "aws-cdk-lib/aws-logs";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 import * as apigwv2 from "aws-cdk-lib/aws-apigatewayv2";
 import { HttpLambdaIntegration } from "aws-cdk-lib/aws-apigatewayv2-integrations";
@@ -117,11 +115,6 @@ export class SmartShopStack extends Stack {
 
     const repoRoot = path.join(__dirname, "../..");
 
-    const apiLogGroup = new logs.LogGroup(this, "ApiFnLogs", {
-      retention: logs.RetentionDays.TWO_WEEKS,
-      removalPolicy: RemovalPolicy.DESTROY,
-    });
-
     const apiFn = new NodejsFunction(this, "ApiFn", {
       functionName: "smartshop-api",
       entry: path.join(repoRoot, "services/api/src/handler.ts"),
@@ -130,7 +123,6 @@ export class SmartShopStack extends Stack {
       architecture: lambda.Architecture.ARM_64,
       memorySize: 512,
       timeout: Duration.seconds(30),
-      logGroup: apiLogGroup,
       depsLockFilePath: path.join(repoRoot, "package-lock.json"),
       projectRoot: repoRoot,
       bundling: {
@@ -163,40 +155,6 @@ export class SmartShopStack extends Stack {
 
     const integration = new HttpLambdaIntegration("ApiIntegration", apiFn);
 
-    const webBucket = new s3.Bucket(this, "WebBucket", {
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-      encryption: s3.BucketEncryption.S3_MANAGED,
-      enforceSSL: true,
-      removalPolicy: RemovalPolicy.DESTROY,
-      autoDeleteObjects: true,
-    });
-
-    const distribution = new cloudfront.Distribution(this, "WebCdn", {
-      comment: "SmartShop SPA",
-      defaultRootObject: "index.html",
-      defaultBehavior: {
-        origin: origins.S3BucketOrigin.withOriginAccessControl(webBucket),
-        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-        cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
-      },
-      errorResponses: [
-        {
-          httpStatus: 403,
-          responseHttpStatus: 200,
-          responsePagePath: "/index.html",
-          ttl: Duration.minutes(1),
-        },
-        {
-          httpStatus: 404,
-          responseHttpStatus: 200,
-          responsePagePath: "/index.html",
-          ttl: Duration.minutes(1),
-        },
-      ],
-    });
-
-    const spaOrigin = `https://${distribution.distributionDomainName}`;
-
     const httpApi = new apigwv2.HttpApi(this, "HttpApi", {
       apiName: "smartshop-api",
       corsPreflight: {
@@ -209,7 +167,7 @@ export class SmartShopStack extends Stack {
           apigwv2.CorsHttpMethod.DELETE,
           apigwv2.CorsHttpMethod.OPTIONS,
         ],
-        allowOrigins: [spaOrigin],
+        allowOrigins: ["*"],
         maxAge: Duration.days(1),
       },
     });
@@ -242,30 +200,36 @@ export class SmartShopStack extends Stack {
       authorizer: jwtAuthorizer,
     });
 
-    new cloudwatch.Alarm(this, "ApiFnErrors", {
-      alarmName: "smartshop-api-lambda-errors",
-      metric: apiFn.metricErrors({
-        period: Duration.minutes(5),
-        statistic: "Sum",
-      }),
-      threshold: 1,
-      evaluationPeriods: 1,
-      datapointsToAlarm: 1,
-      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
-      alarmDescription: "SmartShop API Lambda errors",
+    const webBucket = new s3.Bucket(this, "WebBucket", {
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      enforceSSL: true,
+      removalPolicy: RemovalPolicy.DESTROY,
+      autoDeleteObjects: true,
     });
 
-    new cloudwatch.Alarm(this, "Api5xx", {
-      alarmName: "smartshop-api-5xx",
-      metric: httpApi.metricServerError({
-        period: Duration.minutes(5),
-        statistic: "Sum",
-      }),
-      threshold: 3,
-      evaluationPeriods: 1,
-      datapointsToAlarm: 1,
-      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
-      alarmDescription: "SmartShop HTTP API 5xx responses",
+    const distribution = new cloudfront.Distribution(this, "WebCdn", {
+      comment: "SmartShop SPA",
+      defaultRootObject: "index.html",
+      defaultBehavior: {
+        origin: origins.S3BucketOrigin.withOriginAccessControl(webBucket),
+        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+        cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+      },
+      errorResponses: [
+        {
+          httpStatus: 403,
+          responseHttpStatus: 200,
+          responsePagePath: "/index.html",
+          ttl: Duration.minutes(1),
+        },
+        {
+          httpStatus: 404,
+          responseHttpStatus: 200,
+          responsePagePath: "/index.html",
+          ttl: Duration.minutes(1),
+        },
+      ],
     });
 
     const webDir = path.join(repoRoot, "web");
