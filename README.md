@@ -2,7 +2,7 @@
 
 Startup e-commerce MVP: customers sign up and sign in with Amazon Cognito (email and password), browse a catalogue, manage a cart, preview delivery and premium pricing, confirm an order, and repeat that journey through an in-app AI assistant.
 
-**Status:** Phases 0–4 are in the repo. AWS deploy is still a separate step.
+**Status:** Phases 0–4 and 6 are in the repo (Phase 5 assistant is later). AWS deploy is still a separate step.
 
 ## Project path
 
@@ -17,6 +17,7 @@ Startup e-commerce MVP: customers sign up and sign in with Amazon Cognito (email
 | [docs/usecase-stories/](docs/usecase-stories/) | Use-case stories per implementation phase |
 | [docs/github-setup.md](docs/github-setup.md) | Connect this folder to a private GitHub repo |
 | [docs/one-time-setup.md](docs/one-time-setup.md) | One-time laptop setup: Node, gh, AWS CLI, `aws configure`, CDK bootstrap |
+| [docs/runbook.md](docs/runbook.md) | Operator runbook: Cognito, admin group, premium toggle, CORS, alarms |
 
 ## Stack (v1)
 
@@ -61,7 +62,7 @@ curl "$API_URL/v1/products/prod-ceramic-mug"
 curl -H "Authorization: Bearer $ID_TOKEN" "$API_URL/v1/me"
 ```
 
-Admin product create and premium toggle need a Cognito user in group `admin`. See [docs/one-time-setup.md](docs/one-time-setup.md).
+Admin product create and premium toggle need a Cognito user in group `admin`. See [docs/runbook.md](docs/runbook.md).
 
 ## Phase 2
 
@@ -104,4 +105,8 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173 — catalogue is public; cart, checkout, orders, and chat redirect to `/login`. Sign up is Cognito (`/signup` → `/confirm` → `/login`). `cdk deploy` builds the SPA and writes `/config.json` with the API URL and User Pool ids.
+Open http://localhost:5173 — catalogue is public; cart, checkout, orders, and chat redirect to `/login`. Sign up is Cognito (`/signup` → `/confirm` → `/login`). Vite proxies `/v1` to the deployed API so local CORS is not required. `cdk deploy` builds the SPA and writes `/config.json` with the API URL and User Pool ids.
+
+## Phase 6
+
+Hardening: JWT/group checks (customer on admin → 403; another user’s order → 404), JSON request logs without tokens, CloudWatch alarms `smartshop-api-lambda-errors` and `smartshop-api-5xx`, CORS locked to the CloudFront origin. Operator steps: [docs/runbook.md](docs/runbook.md).

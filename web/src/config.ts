@@ -24,7 +24,7 @@ async function readConfig(): Promise<AppConfig> {
       throw new Error("Copy web/.env.example to web/.env for local development.");
     }
     return {
-      apiUrl: apiUrl.replace(/\/$/, ""),
+      apiUrl: "",
       userPoolId,
       userPoolClientId,
       region,
