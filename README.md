@@ -2,7 +2,7 @@
 
 Startup e-commerce MVP: customers sign up and sign in with Amazon Cognito (email and password), browse a catalogue, manage a cart, preview delivery and premium pricing, confirm an order, and repeat that journey through an in-app AI assistant.
 
-**Status:** Phase 0 foundation is in the repo. AWS deploy is still a separate step.
+**Status:** Phases 0–3 are in the repo. AWS deploy is still a separate step.
 
 ## Project path
 
@@ -77,4 +77,19 @@ curl -H "Authorization: Bearer $ID_TOKEN" -H "Content-Type: application/json" \
   -d '{"deliveryMethod":"STANDARD"}'
 ```
 
-Empty cart on quote returns 400 `CART_EMPTY`. Premium users get 10% off merchandise, not delivery. Orders are Phase 3.
+Empty cart on quote returns 400 `CART_EMPTY`. Premium users get 10% off merchandise, not delivery.
+
+## Phase 3
+
+Signed-in confirm (JWT required). `confirm` must be boolean `true`. Optional `Idempotency-Key` header (UUID) replays the same order for 24 hours.
+
+```bash
+curl -H "Authorization: Bearer $ID_TOKEN" -H "Content-Type: application/json" \
+  -H "Idempotency-Key: $IDEMPOTENCY_KEY" \
+  -X POST "$API_URL/v1/orders" \
+  -d '{"deliveryMethod":"STANDARD","confirm":true}'
+curl -H "Authorization: Bearer $ID_TOKEN" "$API_URL/v1/orders"
+curl -H "Authorization: Bearer $ID_TOKEN" "$API_URL/v1/orders/$ORDER_ID"
+```
+
+Oversell returns 409 `INSUFFICIENT_STOCK`. Same key with a different body returns 409 `IDEMPOTENCY_CONFLICT`. Another customer’s order id returns 404.

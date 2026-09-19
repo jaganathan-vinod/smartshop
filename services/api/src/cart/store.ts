@@ -28,6 +28,33 @@ export async function listCartRecords(userId: string): Promise<CartRecord[]> {
     .map((parsed) => parsed.data);
 }
 
+export async function loadCheckoutCart(
+  userId: string,
+): Promise<{ records: CartRecord[]; lines: CartLine[] }> {
+  const records = await listCartRecords(userId);
+  const lines: CartLine[] = [];
+  for (const record of records) {
+    const product = await getProduct(record.productId);
+    if (!product || !product.active) {
+      throw Object.assign(new Error("NOT_FOUND"), {
+        code: "NOT_FOUND",
+        productId: record.productId,
+      });
+    }
+    lines.push({
+      productId: product.productId,
+      name: product.name,
+      quantity: record.quantity,
+      unitPriceCents: product.unitPriceCents,
+    });
+  }
+  return { records, lines };
+}
+
+export async function getCheckoutLines(userId: string): Promise<CartLine[]> {
+  return (await loadCheckoutCart(userId)).lines;
+}
+
 export async function getCartLines(userId: string): Promise<CartLine[]> {
   const records = await listCartRecords(userId);
   const lines: CartLine[] = [];

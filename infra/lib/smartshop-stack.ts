@@ -86,6 +86,7 @@ export class SmartShopStack extends Stack {
       partitionKey: { name: "userId", type: dynamodb.AttributeType.STRING },
       sortKey: { name: "sk", type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      timeToLiveAttribute: "expiresAt",
       removalPolicy: RemovalPolicy.DESTROY,
     });
     orders.addGlobalSecondaryIndex({

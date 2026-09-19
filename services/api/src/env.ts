@@ -17,3 +17,11 @@ export function usersTableName(): string {
 export function cartsTableName(): string {
   return requireEnv("CARTS_TABLE");
 }
+
+export function ordersTableName(): string {
+  return requireEnv("ORDERS_TABLE");
+}
+
+export function orderNumbersTableName(): string {
+  return requireEnv("ORDER_NUMBERS_TABLE");
+}
