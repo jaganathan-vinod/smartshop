@@ -1,11 +1,13 @@
 import type {
   CartLine,
   DeliveryMethod,
+  ListProductsQuery,
   MeResponse,
   Order,
   Product,
   QuoteResponse,
 } from "@smartshop/shared";
+import { productsListPath } from "./catalog";
 import { loadConfig } from "./config";
 import { requireIdToken } from "./cognitoSession";
 import { isNetworkFailure } from "./validation";
@@ -66,13 +68,8 @@ async function request<T>(
   return body as T;
 }
 
-export function listProducts(query?: string): Promise<{ products: Product[] }> {
-  const params = new URLSearchParams();
-  if (query) {
-    params.set("q", query);
-  }
-  const suffix = params.size ? `?${params.toString()}` : "";
-  return request(`/v1/products${suffix}`, {}, false);
+export function listProducts(query?: ListProductsQuery): Promise<{ products: Product[] }> {
+  return request(productsListPath(query), {}, false);
 }
 
 export function getProduct(productId: string): Promise<Product> {

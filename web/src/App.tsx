@@ -3,6 +3,7 @@ import { AuthProvider } from "./auth";
 import { Layout } from "./Layout";
 import { Protected } from "./Protected";
 import { CartPage } from "./pages/CartPage";
+import { CategoryPage } from "./pages/CategoryPage";
 import { ChatPage } from "./pages/ChatPage";
 import { CheckoutPage } from "./pages/CheckoutPage";
 import { ConfirmPage } from "./pages/ConfirmPage";
@@ -20,6 +21,8 @@ export function App() {
         <Routes>
           <Route element={<Layout />}>
             <Route path="/" element={<HomePage />} />
+            <Route path="/c/:category" element={<CategoryPage />} />
+            <Route path="/category/:category" element={<CategoryPage />} />
             <Route path="/products/:productId" element={<ProductPage />} />
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/confirm" element={<ConfirmPage />} />
