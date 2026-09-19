@@ -7,6 +7,8 @@ This repo is local until you create a **private** GitHub remote named `smartshop
 
 The agent cannot complete GitHub’s browser login for you.
 
+AWS CLI, `aws configure`, and CDK bootstrap are documented in [one-time-setup.md](one-time-setup.md) (not part of `npm run build`).
+
 ## 1. Install and sign in to GitHub CLI
 
 ```bash
