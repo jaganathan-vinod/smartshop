@@ -25,6 +25,16 @@ function errorName(error: unknown): string {
     : "";
 }
 
+export function isNetworkFailure(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+  if (error.name === "ApiRequestError" && "code" in error && error.code === "NETWORK_ERROR") {
+    return true;
+  }
+  return /failed to fetch|networkerror|load failed|network request failed/i.test(error.message);
+}
+
 export function cognitoErrorMessage(error: unknown): string {
   switch (errorName(error)) {
     case "AliasExistsException":
@@ -47,6 +57,9 @@ export function cognitoErrorMessage(error: unknown): string {
     case "UserAlreadyAuthenticatedException":
       return "You are already signed in.";
     default:
+      if (isNetworkFailure(error)) {
+        return "Signed in, but SmartShop could not be reached. Try again.";
+      }
       if (error instanceof Error && error.name === "ApiRequestError") {
         return "Signed in, but the profile could not be loaded. Try again.";
       }

@@ -12,7 +12,7 @@
   "scripts": {
     "build": "npm run build -w @smartshop/shared",
     "dev": "npm run dev -w @smartshop/web",
-    "test": "npm run test -w @smartshop/api && npm run test -w @smartshop/web",
+    "test": "npm run test -w @smartshop/api && npm run test -w @smartshop/web && npm run test -w infra",
     "synth": "npm run synth -w infra",
     "diff": "npm run diff -w infra",
     "deploy": "npm run deploy -w infra",

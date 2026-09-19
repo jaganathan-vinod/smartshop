@@ -30,9 +30,7 @@ export async function requireIdToken(): Promise<string> {
   if (refreshed) {
     return refreshed;
   }
-  throw Object.assign(new Error("Sign-in session is not ready. Try again."), {
-    name: "NotAuthorizedException",
-  });
+  throw new Error("Sign-in session is not ready. Try again.");
 }
 
 export async function signOutIfNeeded(): Promise<void> {

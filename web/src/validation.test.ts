@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   cognitoErrorMessage,
   isAlreadyAuthenticated,
+  isNetworkFailure,
   isUsernameTaken,
   passwordPolicyIssues,
 } from "./validation";
@@ -37,5 +38,30 @@ describe("cognitoErrorMessage", () => {
       true,
     );
     assert.equal(isUsernameTaken({ name: "UsernameExistsException" }), true);
+  });
+
+  it("does not treat a missing ID token as a wrong password", () => {
+    assert.equal(
+      cognitoErrorMessage(new Error("Sign-in session is not ready. Try again.")),
+      "Sign-in session is not ready. Try again.",
+    );
+  });
+
+  it("maps browser Failed to fetch to a reachable-API message", () => {
+    const failed = new TypeError("Failed to fetch");
+    assert.equal(isNetworkFailure(failed), true);
+    assert.equal(
+      cognitoErrorMessage(failed),
+      "Signed in, but SmartShop could not be reached. Try again.",
+    );
+    const wrapped = Object.assign(new Error("Could not reach SmartShop. Try again."), {
+      name: "ApiRequestError",
+      code: "NETWORK_ERROR",
+    });
+    assert.equal(isNetworkFailure(wrapped), true);
+    assert.equal(
+      cognitoErrorMessage(wrapped),
+      "Signed in, but SmartShop could not be reached. Try again.",
+    );
   });
 });

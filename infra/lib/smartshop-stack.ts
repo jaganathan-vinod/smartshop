@@ -16,6 +16,7 @@ import * as s3deploy from "aws-cdk-lib/aws-s3-deployment";
 import * as cloudfront from "aws-cdk-lib/aws-cloudfront";
 import * as origins from "aws-cdk-lib/aws-cloudfront-origins";
 import { Construct } from "constructs";
+import { JWT_PROTECTED_METHODS } from "./jwt-proxy-methods";
 
 export class SmartShopStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
@@ -237,7 +238,7 @@ export class SmartShopStack extends Stack {
 
     httpApi.addRoutes({
       path: "/{proxy+}",
-      methods: [apigwv2.HttpMethod.ANY],
+      methods: JWT_PROTECTED_METHODS,
       integration,
       authorizer: jwtAuthorizer,
     });
