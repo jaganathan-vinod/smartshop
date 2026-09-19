@@ -1,48 +1,124 @@
 # Phase 4 — Web SPA
 
-**Goal:** React + Vite UI on CloudFront so a customer can complete the full shopping journey in the browser.
+**Goal:** React + Vite UI on CloudFront so a visitor can sign up, a customer can sign in with Cognito, and then complete the full shopping journey in the browser.
 
-**Related:** [project-technical-requirements.md](../project-technical-requirements.md) §6
+**Related:** [project-technical-requirements.md](../project-technical-requirements.md) §2.3 and §6
 
 ---
 
-## US-4.01 Google sign-in
+## US-4.01 Sign up
 
-**Title:** Customer signs in with Google in the React app  
-**Actor:** Customer  
-**Story:** As a customer, I want Google sign-in in the React app so my cart and orders are tied to me.
+**Title:** Visitor creates a Cognito account on `/signup`  
+**Actor:** Visitor  
+**Story:** As a visitor, I want a sign-up page that captures my details so Cognito can create my email-and-password account.
 
 **Preconditions**
 
-- Cognito User Pool with Google IdP (Phase 0).
+- Cognito User Pool with self-registration and email verification (Phase 0).
 - SPA hosted locally or on CloudFront.
 
 **Main flow**
 
+1. Visitor opens `/signup`.
+2. Form collects **email**, **display name**, **password**, and **confirm password**.
+3. Client-side checks: required fields, email format, passwords match, password meets Cognito policy (min 8, upper, lower, number).
+4. SPA calls Cognito `SignUp` (not SmartShop Lambda). Email is the username; `name` is the display name.
+5. On success, SPA navigates to `/confirm` with the email prefilled.
+6. Link to `/login` for visitors who already have an account.
+
+**Acceptance criteria**
+
+- Duplicate email shows a clear Cognito error (user already exists).
+- Mismatched confirm password never calls Cognito.
+- Password is not sent to SmartShop APIs or written to DynamoDB.
+- `isPremium` is not on the form and remains false.
+- Sign-up does not log the user in until email is confirmed.
+
+**APIs / screens**
+
+- `/signup`
+- Cognito `SignUp`
+
+**Out of scope**
+
+- Social sign-up, phone number, address, marketing opt-in.
+
+---
+
+## US-4.02 Confirm email
+
+**Title:** Visitor confirms the Cognito email code  
+**Actor:** Visitor  
+**Story:** As a visitor, I want to enter the verification code so my User Pool account becomes active.
+
+**Preconditions**
+
+- `SignUp` succeeded for that email.
+
+**Main flow**
+
+1. Visitor opens `/confirm` and enters email + code from Cognito’s email.
+2. SPA calls Cognito `ConfirmSignUp`.
+3. On success, SPA sends the user to `/login`.
+
+**Acceptance criteria**
+
+- Wrong code shows an error; account stays unconfirmed.
+- Confirmed user can sign in on `/login`.
+- Unconfirmed user who tries `/login` is directed to `/confirm`.
+
+**APIs / screens**
+
+- `/confirm`
+- Cognito `ConfirmSignUp`
+
+**Out of scope**
+
+- Custom email templates (Cognito default message is enough for v1).
+
+---
+
+## US-4.03 Sign in
+
+**Title:** Customer signs in with email and password  
+**Actor:** Customer  
+**Story:** As a customer, I want to sign in with the email and password stored in the Cognito User Pool so my cart and orders are tied to me.
+
+**Preconditions**
+
+- Confirmed User Pool account.
+
+**Main flow**
+
 1. Customer opens `/login`.
-2. Customer completes Google / Cognito hosted UI (or Amplify Authenticator).
-3. SPA stores tokens securely (in-memory + refresh via Cognito; avoid long-lived tokens in localStorage if Amplify handles it).
-4. Authenticated requests send `Authorization: Bearer`.
-5. SPA calls `GET /v1/me` and shows display name.
+2. Form collects email and password.
+3. SPA calls Cognito `InitiateAuth` (SRP or `USER_PASSWORD_AUTH`).
+4. SPA holds tokens via Amplify Auth (avoid rolling a custom token store).
+5. Authenticated requests send `Authorization: Bearer` (ID token).
+6. SPA calls `GET /v1/me` and shows display name.
+7. Sign-out clears the Cognito session.
 
 **Acceptance criteria**
 
 - Unsigned users can still open `/` catalogue.
 - Cart, checkout, orders, and chat routes redirect to `/login`.
-- Sign-out clears session and blocks those routes.
+- Wrong password does not create a DynamoDB user.
+- After first successful `/me`, DynamoDB `Users` exists for that `sub`.
+- `/login` links to `/signup`.
 
 **APIs / screens**
 
-- `/login`
+- `/login`, `/signup`
 - `GET /v1/me`
+- Cognito `InitiateAuth`
 
 **Out of scope**
 
-- Apple/Facebook IdPs, magic links.
+- Google/Apple IdPs, magic links, forgot-password UI.
 
 ---
 
-## US-4.02 End-to-end web checkout
+## US-4.04 End-to-end web checkout
 
 **Title:** Browse, cart, preview, confirm, order number  
 **Actor:** Customer  
@@ -50,7 +126,7 @@
 
 **Preconditions**
 
-- Signed in.
+- Signed in with Cognito email/password.
 - Catalogue has stocked products.
 
 **Main flow**
@@ -81,7 +157,7 @@
 
 ---
 
-## US-4.03 Order history in the UI
+## US-4.05 Order history in the UI
 
 **Title:** Orders list and detail pages  
 **Actor:** Customer  

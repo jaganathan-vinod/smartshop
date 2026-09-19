@@ -68,11 +68,11 @@
 
 ---
 
-## US-6.03 Operator README for OAuth and admin bootstrap
+## US-6.03 Operator README for Cognito and admin bootstrap
 
-**Title:** Google OAuth and admin group runbook  
+**Title:** User Pool, app client, and admin group runbook  
 **Actor:** Engineer  
-**Story:** As an engineer, I want README steps for Google OAuth client setup and admin group bootstrap so a new environment can be demonstrated.
+**Story:** As an engineer, I want README steps for the Cognito User Pool, SPA app client, email verification, and admin group bootstrap so a new environment can be demonstrated.
 
 **Preconditions**
 
@@ -80,14 +80,15 @@
 
 **Main flow**
 
-1. README (or `docs/runbook.md` in this phase) lists: Google Cloud OAuth client, authorized redirect URIs for Cognito, Secrets Manager keys, CDK context.
+1. README (or `docs/runbook.md` in this phase) lists: User Pool id, app client id, region, callback URLs if any, and how email verification works.
 2. Document how to add a user to Cognito group `admin`.
 3. Document how to toggle `isPremium` via admin API.
+4. Document that passwords are managed only in Cognito (console reset for demos).
 
 **Acceptance criteria**
 
 - A new engineer can follow the runbook without reading CDK source.
-- No secrets are pasted into the runbook; placeholders only.
+- No passwords or AWS keys are pasted into the runbook; placeholders only.
 
 **APIs / screens**
 
@@ -95,4 +96,4 @@
 
 **Out of scope**
 
-- Automated Google Cloud project provisioning.
+- Custom Cognito email templates, social identity providers.

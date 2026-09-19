@@ -12,7 +12,7 @@
 
 **Preconditions**
 
-- Valid customer JWT.
+- Signed in (Cognito email/password JWT).
 - Bedrock model access in `ap-southeast-1`.
 - Cart and order modules from Phases 2–3.
 

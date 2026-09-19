@@ -1,6 +1,6 @@
 # SmartShop
 
-Startup e-commerce MVP: Google-authenticated customers browse a catalogue, manage a cart, preview delivery and premium pricing, confirm an order, and repeat that journey through an in-app AI assistant.
+Startup e-commerce MVP: customers sign up and sign in with Amazon Cognito (email and password), browse a catalogue, manage a cart, preview delivery and premium pricing, confirm an order, and repeat that journey through an in-app AI assistant.
 
 **Status:** documentation only. Application and AWS infrastructure are not built yet.
 
@@ -23,7 +23,7 @@ Startup e-commerce MVP: Google-authenticated customers browse a catalogue, manag
 - API: API Gateway HTTP API
 - Backend: Node.js TypeScript Lambda (modular monolith)
 - Data: DynamoDB
-- Auth: Amazon Cognito with Google social login
+- Auth: Amazon Cognito User Pool (email + password, self-service sign-up)
 - Validation: Zod
 - Assistant: Amazon Bedrock (tool calling into the same domain modules)
 - Checkout: simulated (no real payments)

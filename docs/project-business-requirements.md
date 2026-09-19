@@ -7,7 +7,7 @@
 
 ## 1. Purpose
 
-SmartShop lets socially authenticated customers shop a product catalogue, manage a cart, choose delivery, preview a complete price breakdown (including a 10% premium discount when eligible), place an order only after explicit confirmation, receive an order number, retrieve past orders, and complete the same journey through an AI chat assistant.
+SmartShop lets customers create an account in Amazon Cognito (email and password), shop a product catalogue, manage a cart, choose delivery, preview a complete price breakdown (including a 10% premium discount when eligible), place an order only after explicit confirmation, receive an order number, retrieve past orders, and complete the same journey through an AI chat assistant.
 
 ## 2. Goals
 
@@ -17,7 +17,7 @@ SmartShop lets socially authenticated customers shop a product catalogue, manage
 
 ## 3. Success criteria
 
-A Google-signed-in customer can complete:
+A signed-in customer (Cognito email and password) can complete:
 
 **Browse → cart → delivery choice → price preview → explicit confirm → order number → order history**
 
@@ -28,21 +28,22 @@ on the web **and** in chat. Premium customers see 10% off merchandise (not deliv
 | Actor | Description |
 | --- | --- |
 | **Visitor** | Unauthenticated person. May browse and search the catalogue. Cannot mutate a cart or place an order. |
-| **Customer** | Google-authenticated shopper. May have `isPremium`. Owns a server-side cart and order history. |
+| **Customer** | Shopper with a Cognito User Pool account (email + password). May have `isPremium`. Owns a server-side cart and order history. |
 | **Admin** | Cognito group `admin`. Creates/updates products and toggles premium flags via API (Postman/curl in v1). No admin UI. |
 | **Assistant** | Amazon Bedrock tool loop acting **as the signed-in customer**. Cannot bypass confirmation, invent prices, or call admin APIs. |
 
 ## 5. Customer capabilities
 
-1. Browse and search the product catalogue (name and category; case-insensitive contains on a small seeded set).
-2. Add, update, and remove products from the shopping cart.
-3. Select **standard** or **express** delivery.
-4. Receive a **10% discount** if they are a premium customer.
-5. Preview the **complete price breakdown** before placing an order.
-6. Place an order only after **explicit confirmation**.
-7. Receive an **order number**.
-8. Retrieve **previous orders**.
-9. Perform the same shopping journey through an **AI chat assistant**.
+1. Sign up with email, password, and profile details, then sign in. Credentials are stored and verified by the Cognito User Pool (not by SmartShop’s own database).
+2. Browse and search the product catalogue (name and category; case-insensitive contains on a small seeded set).
+3. Add, update, and remove products from the shopping cart.
+4. Select **standard** or **express** delivery.
+5. Receive a **10% discount** if they are a premium customer.
+6. Preview the **complete price breakdown** before placing an order.
+7. Place an order only after **explicit confirmation**.
+8. Receive an **order number**.
+9. Retrieve **previous orders**.
+10. Perform the same shopping journey through an **AI chat assistant**.
 
 ## 6. Pricing rules
 
@@ -94,11 +95,20 @@ totalCents           = subtotalCents − premiumDiscountCents + deliveryCents + 
 
 ## 11. Authentication and access
 
-- Social login: **Google** via Amazon Cognito.
+- **Amazon Cognito User Pool** is the identity store. It owns sign-up, sign-in, password hashing, and session JWTs.
+- **Sign-up page** (`/signup`) captures:
+  - Email (required; used as username)
+  - Password and confirm password (required; Cognito password policy)
+  - Display name (required; stored as Cognito `name`)
+- Email verification uses Cognito’s confirmation code (`/confirm`) before the account can sign in.
+- **Login page** (`/login`) authenticates with email and password against the same User Pool.
+- The SPA talks to Cognito directly (Amplify Auth or Cognito SDK). Passwords never pass through the SmartShop Lambda or DynamoDB.
+- DynamoDB `Users` is an **application profile** only (`isPremium`, display cache), keyed by Cognito `sub`, upserted on `GET /v1/me`.
 - Catalogue `GET` may be public.
 - Cart, quotes, orders, chat, and `/me` require a signed-in customer.
-- Admin routes require Cognito group `admin`. Google users are customers unless added to that group.
+- Admin routes require Cognito group `admin`. New sign-ups are customers unless an operator adds them to that group.
 - Customer A cannot read Customer B’s cart or orders.
+- Customers cannot set `isPremium` on the sign-up form.
 
 ## 12. Out of scope for v1
 
@@ -111,6 +121,8 @@ totalCents           = subtotalCents − premiumDiscountCents + deliveryCents + 
 - Dedicated search engine (OpenSearch)
 - Native mobile apps
 - Paid premium subscription
+- Google / social identity providers
+- Forgot-password and profile-edit UI (Cognito console can reset passwords for demos)
 
 ## 13. Related documents
 

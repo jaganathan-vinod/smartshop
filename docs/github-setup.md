@@ -30,7 +30,7 @@ If `gh` works but `git push` still fails inside Cursor, use Cursor’s GitHub si
 
 ## 2. First local commit (only if files are not committed yet)
 
-Do **not** commit `.env`, Google client secrets, or AWS keys. `.gitignore` already excludes them.
+Do **not** commit `.env`, Cognito app secrets (if any), or AWS keys. `.gitignore` already excludes them.
 
 ```bash
 cd /Users/dhivya/vinod/cursor-projects/smartshop
@@ -86,6 +86,6 @@ git push
 ## 5. Do not commit
 
 - `.env` / `.env.*`
-- Google OAuth client secret
+- Cognito app client secret (v1 uses a public SPA client with no secret)
 - AWS access keys, `cdk.context.json` secrets, `.aws/`
 - `node_modules/`, `cdk.out/`, `dist/`

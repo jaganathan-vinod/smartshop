@@ -10,18 +10,17 @@
 
 **Title:** CDK provisions Cognito, HTTP API, Lambda stub, DynamoDB, and S3/CloudFront  
 **Actor:** Engineer  
-**Story:** As an engineer, I want CDK to provision Cognito (Google), an HTTP API, a Lambda stub, DynamoDB tables, and S3/CloudFront so later phases have a deployable shell.
+**Story:** As an engineer, I want CDK to provision a Cognito User Pool (email and password, self-sign-up), an HTTP API, a Lambda stub, DynamoDB tables, and S3/CloudFront so later phases have a deployable shell.
 
 **Preconditions**
 
 - AWS account and CDK bootstrap in `ap-southeast-1` are available.
-- Google OAuth client id/secret can be stored in Secrets Manager (or placeholders for local synth).
 
 **Main flow**
 
 1. Engineer runs `cdk deploy` from the repo.
-2. CDK creates: User Pool + Google IdP, HTTP API, Node 20 Lambda stub, Products/Users/Carts/Orders/OrderNumbers/Conversations tables, S3 bucket, CloudFront distribution.
-3. Outputs print API URL, CloudFront URL, and User Pool id.
+2. CDK creates: User Pool with email username, required `name` attribute, self-registration, email verification, public SPA app client; HTTP API JWT authorizer; Node 20 Lambda stub; Products/Users/Carts/Orders/OrderNumbers/Conversations tables; S3 bucket; CloudFront distribution.
+3. Outputs print API URL, CloudFront URL, User Pool id, and app client id.
 
 **Acceptance criteria**
 

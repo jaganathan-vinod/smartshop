@@ -14,7 +14,7 @@
 | Backend | Node.js TypeScript on AWS Lambda |
 | Backend design | Modular monolith (one deployable, internal modules) |
 | Data | DynamoDB (multi-table, one table per aggregate) |
-| Auth | Amazon Cognito + Google social login |
+| Auth | Amazon Cognito User Pool (email + password; self-service sign-up) |
 | Validation | Zod at the HTTP boundary |
 | Assistant | Amazon Bedrock Converse API with tool use |
 | IaC | AWS CDK (TypeScript) |
@@ -34,7 +34,7 @@ flowchart TB
 
   CF[CloudFront_S3]
   APIGW[API_Gateway_HTTP_API]
-  Cognito[Cognito_Google]
+  Cognito[Cognito_UserPool]
   Lambda[Lambda_Modular_Monolith]
   DDB[DynamoDB]
   Bedrock[Bedrock_Converse]
@@ -54,7 +54,7 @@ flowchart TB
 
 | Module | Responsibility |
 | --- | --- |
-| `identity` | Map Cognito `sub` to `Users`; expose `isPremium` |
+| `identity` | Map Cognito `sub` to DynamoDB `Users`; copy `email`/`name` from JWT; expose `isPremium` |
 | `catalog` | Product CRUD (admin) and public read/search |
 | `cart` | Line items keyed by user |
 | `pricing` | Pure function: cart lines + user + delivery → breakdown |
@@ -66,11 +66,38 @@ Bedrock **does not** call API Gateway. Tools invoke in-process functions with th
 
 ### 2.2 AWS sketch
 
-- Cognito User Pool + Google IdP. SPA uses hosted UI or Amplify Authenticator.
-- HTTP API JWT authorizer. `GET /v1/products` may be unauthenticated. `/v1/admin/*` requires Cognito group `admin`.
+- **Cognito User Pool** with email as username, self-registration enabled, and email verification required. No Google (or other) identity provider in v1.
+- SPA uses Amplify Auth / Cognito SDK for `signUp`, `confirmSignUp`, and `signIn`. Public app client (no client secret).
+- Sign-up attributes: `email`, `name` (display name). Password policy: Cognito default (min 8, upper, lower, number).
+- HTTP API JWT authorizer against this User Pool. `GET /v1/products` may be unauthenticated. `/v1/admin/*` requires Cognito group `admin`.
 - Lambda: Node.js 20, ARM64, 512 MB, timeout 30 s (chat route 29 s).
 - CloudFront SPA with `/index.html` error fallback for client routing. API on `api.smartshop.*` or `/api/*` origin.
-- Bedrock via IAM (no API keys). Google client id/secret in Secrets Manager, referenced by Cognito.
+- Bedrock via IAM (no API keys). No Google OAuth secrets.
+
+### 2.3 Cognito User Pool (credentials)
+
+Amazon Cognito is the only credential store.
+
+| Concern | Decision |
+| --- | --- |
+| Username | Email |
+| Password | User Pool hashes and validates; never stored in DynamoDB or Lambda logs |
+| Self-registration | Enabled |
+| Required attributes | `email`, `name` (display name from the sign-up form) |
+| Verification | Email code before first sign-in (`/confirm`) |
+| App client | Public SPA client, no secret, auth flows `USER_PASSWORD_AUTH` / `USER_SRP_AUTH` |
+| Hosted UI | Not required; SmartShop owns `/signup` and `/login` |
+| Social IdPs | Out of scope for v1 |
+| Application profile | DynamoDB `Users` keyed by `sub`; `isPremium` is not a Cognito attribute in v1 |
+
+Sign-up / sign-in sequence:
+
+1. `/signup` → Cognito `SignUp` (email, password, name).
+2. `/confirm` → Cognito `ConfirmSignUp` (email, code).
+3. `/login` → Cognito `InitiateAuth` → ID + access tokens.
+4. SPA calls `GET /v1/me` with the ID token; identity module upserts DynamoDB `Users`.
+
+Do not add SmartShop REST endpoints that accept raw passwords.
 
 ## 3. Non-functional requirements
 
@@ -92,7 +119,8 @@ Bedrock **does not** call API Gateway. Tools invoke in-process functions with th
 
 - PK: `userId` (Cognito `sub`)
 - Attributes: `email`, `displayName`, `isPremium` (bool), `createdAt`, `updatedAt`
-- Created on first authenticated request (`identity` upsert).
+- Created on first authenticated request (`identity` upsert from Cognito JWT `sub`, `email`, `name`).
+- Not used for passwords.
 
 ### 4.3 Carts (one item per line)
 
@@ -184,7 +212,9 @@ There are no separate chat endpoints for cart or order. The model uses tools tha
 
 | Route | Purpose |
 | --- | --- |
-| `/login` | Google sign-in |
+| `/signup` | Create account: email, password, confirm password, display name |
+| `/confirm` | Enter Cognito email verification code |
+| `/login` | Sign in with email and password |
 | `/` | Catalogue browse/search |
 | `/products/:id` | Product detail |
 | `/cart` | Cart lines |
@@ -212,7 +242,7 @@ Chat must show assistant text plus the same numeric breakdown when a quote tool 
 - Orders: missing `confirm`, stock conditional-write failure, idempotent replay.
 - Authz: customer cannot hit admin; customer A cannot `GET` customer B’s order.
 - Assistant: fixture that must quote before confirm; reject confirm without user yes.
-- UI (Phase 4): browse → cart → quote → confirm → history in the browser.
+- UI (Phase 4): sign up → confirm email → sign in → browse → cart → quote → confirm → history in the browser.
 
 ## 9. Implementation phases
 
@@ -221,12 +251,12 @@ Work happens only in `/Users/dhivya/vinod/cursor-projects/smartshop` after the w
 | Phase | Scope |
 | --- | --- |
 | Docs (this drop) | Business, technical, use-case, GitHub setup markdown |
-| 0 Foundation | CDK, Cognito Google, HTTP API, Lambda stub, DynamoDB, S3/CloudFront, Zod types, seed |
+| 0 Foundation | CDK, Cognito User Pool (email/password, self-sign-up), HTTP API, Lambda stub, DynamoDB, S3/CloudFront, Zod types, seed |
 | 1 Catalogue + identity | Product GET/search, `/me`, admin APIs |
 | 2 Cart + pricing | Cart CRUD, `POST /v1/quotes` |
 | 3 Orders | Confirm, numbers, stock, history, idempotency |
-| 4 SPA | React Vite UI, Google login, CloudFront |
+| 4 SPA | React Vite UI, `/signup` `/confirm` `/login`, CloudFront |
 | 5 Assistant | Bedrock tools + confirmation guard in code |
-| 6 Hardening | IAM, logs/alarms, CORS, OAuth README |
+| 6 Hardening | IAM, logs/alarms, CORS, Cognito admin bootstrap README |
 
 Phase use-case stories: [usecase-stories/](usecase-stories/).

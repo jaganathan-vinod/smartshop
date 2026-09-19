@@ -84,7 +84,7 @@
 
 **Preconditions**
 
-- Valid Cognito JWT from Google login.
+- Valid Cognito JWT from email/password sign-in.
 
 **Main flow**
 
@@ -97,6 +97,7 @@
 - First call creates the user item; second call does not duplicate.
 - Unauthenticated request returns 401.
 - `isPremium` is false until an admin toggles it.
+- `displayName` matches the Cognito `name` captured at sign-up.
 
 **APIs / screens**
 
@@ -140,4 +141,4 @@
 
 **Out of scope**
 
-- Admin UI, bulk CSV import.
+- Admin UI, bulk CSV import, customer self-service premium.
