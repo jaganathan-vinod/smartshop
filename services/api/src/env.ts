@@ -13,3 +13,7 @@ export function productsTableName(): string {
 export function usersTableName(): string {
   return requireEnv("USERS_TABLE");
 }
+
+export function cartsTableName(): string {
+  return requireEnv("CARTS_TABLE");
+}

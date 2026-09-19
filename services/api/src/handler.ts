@@ -4,8 +4,10 @@ import type { HealthResponse } from "@smartshop/shared";
 import { apiError } from "@smartshop/shared";
 import { withClaims } from "./auth.js";
 import { registerAdminRoutes } from "./admin/routes.js";
+import { registerCartRoutes } from "./cart/routes.js";
 import { registerCatalogRoutes } from "./catalog/routes.js";
 import { registerIdentityRoutes } from "./identity/routes.js";
+import { registerQuoteRoutes } from "./pricing/routes.js";
 
 const app = new Hono();
 
@@ -20,6 +22,8 @@ app.get("/v1/health", (c) => {
 
 registerCatalogRoutes(app);
 registerIdentityRoutes(app);
+registerCartRoutes(app);
+registerQuoteRoutes(app);
 registerAdminRoutes(app);
 
 app.notFound((c) => c.json(apiError("NOT_FOUND", "Route not found"), 404));

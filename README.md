@@ -61,4 +61,20 @@ curl "$API_URL/v1/products/prod-ceramic-mug"
 curl -H "Authorization: Bearer $ID_TOKEN" "$API_URL/v1/me"
 ```
 
-Admin product create and premium toggle need a Cognito user in group `admin`. See [docs/one-time-setup.md](docs/one-time-setup.md). Catalogue search, cart, and checkout UI are later phases.
+Admin product create and premium toggle need a Cognito user in group `admin`. See [docs/one-time-setup.md](docs/one-time-setup.md).
+
+## Phase 2
+
+Signed-in cart and quote (JWT required):
+
+```bash
+curl -H "Authorization: Bearer $ID_TOKEN" -H "Content-Type: application/json" \
+  -X PUT "$API_URL/v1/cart/items" \
+  -d '{"productId":"prod-ceramic-mug","quantity":2}'
+curl -H "Authorization: Bearer $ID_TOKEN" "$API_URL/v1/cart"
+curl -H "Authorization: Bearer $ID_TOKEN" -H "Content-Type: application/json" \
+  -X POST "$API_URL/v1/quotes" \
+  -d '{"deliveryMethod":"STANDARD"}'
+```
+
+Empty cart on quote returns 400 `CART_EMPTY`. Premium users get 10% off merchandise, not delivery. Orders are Phase 3.
