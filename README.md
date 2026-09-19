@@ -2,7 +2,7 @@
 
 Startup e-commerce MVP: customers sign up and sign in with Amazon Cognito (email and password), browse a catalogue, manage a cart, preview delivery and premium pricing, confirm an order, and repeat that journey through an in-app AI assistant.
 
-**Status:** Phases 0–3 are in the repo. AWS deploy is still a separate step.
+**Status:** Phases 0–4 are in the repo. AWS deploy is still a separate step.
 
 ## Project path
 
@@ -93,3 +93,15 @@ curl -H "Authorization: Bearer $ID_TOKEN" "$API_URL/v1/orders/$ORDER_ID"
 ```
 
 Oversell returns 409 `INSUFFICIENT_STOCK`. Same key with a different body returns 409 `IDEMPOTENCY_CONFLICT`. Another customer’s order id returns 404.
+
+## Phase 4
+
+React + Vite SPA. Locally:
+
+```bash
+cp web/.env.example web/.env
+npm install
+npm run dev
+```
+
+Open http://localhost:5173 — catalogue is public; cart, checkout, orders, and chat redirect to `/login`. Sign up is Cognito (`/signup` → `/confirm` → `/login`). `cdk deploy` builds the SPA and writes `/config.json` with the API URL and User Pool ids.

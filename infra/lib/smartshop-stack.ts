@@ -1,5 +1,7 @@
+import * as fs from "node:fs";
 import * as path from "node:path";
-import { Duration, RemovalPolicy, CfnOutput, Stack, StackProps } from "aws-cdk-lib";
+import { execSync } from "node:child_process";
+import { DockerImage, Duration, RemovalPolicy, CfnOutput, Stack, StackProps } from "aws-cdk-lib";
 import * as cognito from "aws-cdk-lib/aws-cognito";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as lambda from "aws-cdk-lib/aws-lambda";
@@ -230,8 +232,42 @@ export class SmartShopStack extends Stack {
       ],
     });
 
+    const webDir = path.join(repoRoot, "web");
+
     new s3deploy.BucketDeployment(this, "WebDeploy", {
-      sources: [s3deploy.Source.asset(path.join(repoRoot, "web"))],
+      sources: [
+        s3deploy.Source.asset(webDir, {
+          exclude: ["node_modules", "dist", ".env", ".env.local"],
+          bundling: {
+            image: DockerImage.fromRegistry("node:22"),
+            local: {
+              tryBundle(outputDir: string): boolean {
+                execSync("npm run build -w @smartshop/web", {
+                  cwd: repoRoot,
+                  stdio: "inherit",
+                });
+                const dist = path.join(webDir, "dist");
+                if (!fs.existsSync(dist)) {
+                  return false;
+                }
+                fs.cpSync(dist, outputDir, { recursive: true });
+                return true;
+              },
+            },
+            command: [
+              "bash",
+              "-c",
+              "npm ci && npm run build && cp -r dist/* /asset-output/",
+            ],
+          },
+        }),
+        s3deploy.Source.jsonData("config.json", {
+          apiUrl: httpApi.apiEndpoint,
+          userPoolId: userPool.userPoolId,
+          userPoolClientId: userPoolClient.userPoolClientId,
+          region: this.region,
+        }),
+      ],
       destinationBucket: webBucket,
       distribution,
       distributionPaths: ["/*"],
@@ -243,7 +279,7 @@ export class SmartShopStack extends Stack {
     });
     new CfnOutput(this, "CloudFrontUrl", {
       value: `https://${distribution.distributionDomainName}`,
-      description: "Placeholder SPA URL",
+      description: "SmartShop SPA URL",
     });
     new CfnOutput(this, "UserPoolId", {
       value: userPool.userPoolId,

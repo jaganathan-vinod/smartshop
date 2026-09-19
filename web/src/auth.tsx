@@ -1,0 +1,92 @@
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
+import type { MeResponse } from "@smartshop/shared";
+import { ensureAmplify } from "./amplify";
+import { getMe } from "./api";
+
+type AuthState = {
+  ready: boolean;
+  user: MeResponse | null;
+  refresh: () => Promise<void>;
+  signOut: () => Promise<void>;
+};
+
+const AuthContext = createContext<AuthState | undefined>(undefined);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [ready, setReady] = useState(false);
+  const [user, setUser] = useState<MeResponse | null>(null);
+
+  const refresh = useCallback(async () => {
+    try {
+      await ensureAmplify();
+      const { getCurrentUser } = await import("aws-amplify/auth");
+      await getCurrentUser();
+      setUser(await getMe());
+    } catch {
+      setUser(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    refresh()
+      .catch(() => {
+        if (!cancelled) {
+          setUser(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setReady(true);
+        }
+      });
+    let stopHub: (() => void) | undefined;
+    void import("aws-amplify/utils").then(({ Hub }) => {
+      if (cancelled) {
+        return;
+      }
+      stopHub = Hub.listen("auth", ({ payload }) => {
+        if (payload.event === "signedOut") {
+          setUser(null);
+        }
+        if (payload.event === "signedIn") {
+          void refresh();
+        }
+      });
+    });
+    return () => {
+      cancelled = true;
+      stopHub?.();
+    };
+  }, [refresh]);
+
+  const signOut = useCallback(async () => {
+    await ensureAmplify();
+    const { signOut: amplifySignOut } = await import("aws-amplify/auth");
+    await amplifySignOut();
+    setUser(null);
+  }, []);
+
+  const value = useMemo(
+    () => ({ ready, user, refresh, signOut }),
+    [ready, user, refresh, signOut],
+  );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function useAuth(): AuthState {
+  const value = useContext(AuthContext);
+  if (!value) {
+    throw new Error("useAuth must be used within AuthProvider");
+  }
+  return value;
+}
