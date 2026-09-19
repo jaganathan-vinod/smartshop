@@ -8,6 +8,7 @@ build/
 coverage/
 *.tsbuildinfo
 cdk.out/
+cdk-outputs.json
 
 # Environment and secrets
 .env

@@ -70,7 +70,7 @@ Bedrock **does not** call API Gateway. Tools invoke in-process functions with th
 - SPA uses Amplify Auth / Cognito SDK for `signUp`, `confirmSignUp`, and `signIn`. Public app client (no client secret).
 - Sign-up attributes: `email`, `name` (display name). Password policy: Cognito default (min 8, upper, lower, number).
 - HTTP API JWT authorizer against this User Pool. `GET /v1/products` may be unauthenticated. `/v1/admin/*` requires Cognito group `admin`.
-- Lambda: Node.js 20, ARM64, 512 MB, timeout 30 s (chat route 29 s).
+- Lambda on Node.js 22, ARM64, 512 MB, timeout 30 s (chat route 29 s).
 - CloudFront SPA with `/index.html` error fallback for client routing. API on `api.smartshop.*` or `/api/*` origin.
 - Bedrock via IAM (no API keys). No Google OAuth secrets.
 
