@@ -48,4 +48,17 @@ npm run verify:phase0
 
 `cdk deploy` writes `cdk-outputs.json` (gitignored) with `ApiUrl`, `CloudFrontUrl`, `UserPoolId`, and `UserPoolClientId`.
 
-Phase 0 success means: synth works, `/v1/health` returns 200, tables and User Pool exist, CloudFront shows the placeholder page. Catalogue search, signup UI, cart, and orders are later phases.
+Phase 0 success means: synth works, `/v1/health` returns 200, tables and User Pool exist, CloudFront shows the placeholder page.
+
+## Phase 1
+
+Public catalogue and signed-in profile. After deploy + seed:
+
+```bash
+curl "$API_URL/v1/products"
+curl "$API_URL/v1/products?q=mug"
+curl "$API_URL/v1/products/prod-ceramic-mug"
+curl -H "Authorization: Bearer $ID_TOKEN" "$API_URL/v1/me"
+```
+
+Admin product create and premium toggle need a Cognito user in group `admin`. See [docs/one-time-setup.md](docs/one-time-setup.md). Catalogue search, cart, and checkout UI are later phases.

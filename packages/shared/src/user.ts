@@ -10,3 +10,18 @@ export const userProfileSchema = z.object({
 });
 
 export type UserProfile = z.infer<typeof userProfileSchema>;
+
+export const meResponseSchema = userProfileSchema.pick({
+  userId: true,
+  email: true,
+  displayName: true,
+  isPremium: true,
+});
+
+export type MeResponse = z.infer<typeof meResponseSchema>;
+
+export const patchPremiumRequestSchema = z.object({
+  isPremium: z.boolean(),
+});
+
+export type PatchPremiumRequest = z.infer<typeof patchPremiumRequestSchema>;

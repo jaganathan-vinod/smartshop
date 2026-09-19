@@ -177,6 +177,20 @@ export class SmartShopStack extends Stack {
     });
 
     httpApi.addRoutes({
+      path: "/v1/products",
+      methods: [apigwv2.HttpMethod.GET],
+      integration,
+      authorizer: new apigwv2.HttpNoneAuthorizer(),
+    });
+
+    httpApi.addRoutes({
+      path: "/v1/products/{productId}",
+      methods: [apigwv2.HttpMethod.GET],
+      integration,
+      authorizer: new apigwv2.HttpNoneAuthorizer(),
+    });
+
+    httpApi.addRoutes({
       path: "/{proxy+}",
       methods: [apigwv2.HttpMethod.ANY],
       integration,

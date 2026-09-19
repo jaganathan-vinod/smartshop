@@ -4,7 +4,12 @@
   "private": true,
   "type": "module",
   "main": "src/handler.ts",
+  "scripts": {
+    "test": "tsx --test src/**/*.test.ts"
+  },
   "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.700.0",
+    "@aws-sdk/lib-dynamodb": "^3.700.0",
     "@smartshop/shared": "0.1.0",
     "hono": "^4.6.14"
   }
