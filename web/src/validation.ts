@@ -47,6 +47,9 @@ export function cognitoErrorMessage(error: unknown): string {
     case "UserAlreadyAuthenticatedException":
       return "You are already signed in.";
     default:
+      if (error instanceof Error && error.name === "ApiRequestError") {
+        return "Signed in, but the profile could not be loaded. Try again.";
+      }
       return error instanceof Error ? error.message : "Something went wrong.";
   }
 }

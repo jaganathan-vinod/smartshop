@@ -7,7 +7,7 @@ import type {
   QuoteResponse,
 } from "@smartshop/shared";
 import { loadConfig } from "./config";
-import { ensureAmplify } from "./amplify";
+import { requireIdToken } from "./cognitoSession";
 
 export class ApiRequestError extends Error {
   constructor(
@@ -23,15 +23,8 @@ export class ApiRequestError extends Error {
 
 async function authHeaders(extra?: HeadersInit, authenticate = true): Promise<Headers> {
   const headers = new Headers(extra);
-  if (!authenticate) {
-    return headers;
-  }
-  await ensureAmplify();
-  const { fetchAuthSession } = await import("aws-amplify/auth");
-  const session = await fetchAuthSession();
-  const token = session.tokens?.idToken?.toString();
-  if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
+  if (authenticate) {
+    headers.set("Authorization", `Bearer ${await requireIdToken()}`);
   }
   return headers;
 }
