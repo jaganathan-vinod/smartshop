@@ -19,14 +19,17 @@ export function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+function errorName(error: unknown): string {
+  return error && typeof error === "object" && "name" in error
+    ? String(error.name)
+    : "";
+}
+
 export function cognitoErrorMessage(error: unknown): string {
-  const name =
-    error && typeof error === "object" && "name" in error
-      ? String(error.name)
-      : "";
-  switch (name) {
+  switch (errorName(error)) {
+    case "AliasExistsException":
     case "UsernameExistsException":
-      return "An account with this email already exists.";
+      return "An account with this email already exists. Sign in instead.";
     case "UserNotConfirmedException":
       return "Confirm your email before signing in.";
     case "NotAuthorizedException":
@@ -41,16 +44,25 @@ export function cognitoErrorMessage(error: unknown): string {
       return "Too many attempts. Try again later.";
     case "UserNotFoundException":
       return "Incorrect email or password.";
+    case "UserAlreadyAuthenticatedException":
+      return "You are already signed in.";
     default:
       return error instanceof Error ? error.message : "Something went wrong.";
   }
 }
 
 export function isUnconfirmedUser(error: unknown): boolean {
+  return errorName(error) === "UserNotConfirmedException";
+}
+
+export function isUsernameTaken(error: unknown): boolean {
+  const name = errorName(error);
+  return name === "UsernameExistsException" || name === "AliasExistsException";
+}
+
+export function isAlreadyAuthenticated(error: unknown): boolean {
   return (
-    error !== null &&
-    typeof error === "object" &&
-    "name" in error &&
-    error.name === "UserNotConfirmedException"
+    errorName(error) === "UserAlreadyAuthenticatedException" ||
+    (error instanceof Error && /already a signed in user/i.test(error.message))
   );
 }

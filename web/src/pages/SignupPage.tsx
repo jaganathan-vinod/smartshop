@@ -1,16 +1,31 @@
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
+import { useAuth } from "../auth";
 import { ensureAmplify } from "../amplify";
-import { cognitoErrorMessage, isValidEmail, passwordPolicyIssues } from "../validation";
+import { signOutIfNeeded } from "../cognitoSession";
+import {
+  cognitoErrorMessage,
+  isUsernameTaken,
+  isValidEmail,
+  passwordPolicyIssues,
+} from "../validation";
 
 export function SignupPage() {
   const navigate = useNavigate();
+  const { ready, user } = useAuth();
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  if (!ready) {
+    return <p className="muted">Loading…</p>;
+  }
+  if (user) {
+    return <Navigate to="/" replace />;
+  }
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -35,6 +50,7 @@ export function SignupPage() {
     setBusy(true);
     try {
       await ensureAmplify();
+      await signOutIfNeeded();
       const { signUp } = await import("aws-amplify/auth");
       await signUp({
         username: email.trim(),
@@ -44,10 +60,25 @@ export function SignupPage() {
             email: email.trim(),
             name: displayName.trim(),
           },
+          autoSignIn: true,
         },
       });
       navigate(`/confirm?email=${encodeURIComponent(email.trim())}`);
     } catch (caught) {
+      if (isUsernameTaken(caught)) {
+        try {
+          const { resendSignUpCode } = await import("aws-amplify/auth");
+          await resendSignUpCode({ username: email.trim() });
+          navigate(`/confirm?email=${encodeURIComponent(email.trim())}`);
+          return;
+        } catch {
+          navigate("/login", {
+            replace: true,
+            state: { existing: email.trim() },
+          });
+          return;
+        }
+      }
       setError(cognitoErrorMessage(caught));
       setBusy(false);
     }
