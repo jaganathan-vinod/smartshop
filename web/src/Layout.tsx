@@ -1,5 +1,6 @@
-import { type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link, NavLink, Outlet, useNavigate, useSearchParams } from "react-router-dom";
+import { getCart } from "./api";
 import { useAuth } from "./auth";
 import { CATEGORIES, categoryPath } from "./catalog";
 
@@ -8,15 +9,38 @@ export function Layout() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const q = params.get("q") ?? "";
+  const [cartCount, setCartCount] = useState(0);
+
+  useEffect(() => {
+    if (!user) {
+      setCartCount(0);
+      return;
+    }
+    let cancelled = false;
+    getCart()
+      .then((result) => {
+        if (!cancelled) {
+          setCartCount(result.items.reduce((sum, item) => sum + item.quantity, 0));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setCartCount(0);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   return (
     <div className="shell">
-      <header className="topbar">
+      <header className="store-header">
         <NavLink to="/" end className="brand">
           <span className="brand-mark">SS</span>
           <span>
             <strong>SmartShop</strong>
-            <em>Everyday catalogue</em>
+            <em>Everyday essentials</em>
           </span>
         </NavLink>
         <form
@@ -32,52 +56,58 @@ export function Layout() {
             type="search"
             name="q"
             defaultValue={q}
-            placeholder="Search the catalogue"
+            placeholder="Search for products, categories…"
             aria-label="Search products"
           />
-          <button type="submit">Search</button>
         </form>
-        <nav className="nav">
+        <nav className="header-nav" aria-label="Store">
           <NavLink to="/" end>
-            Shop
+            Home
           </NavLink>
-          <NavLink to="/cart">Cart</NavLink>
-          <NavLink to="/orders">Orders</NavLink>
-          <NavLink to="/chat">Chat</NavLink>
+          {CATEGORIES.filter((category) => category.slug !== "home").map((category) => (
+            <NavLink key={category.slug} to={categoryPath(category.slug)}>
+              {category.label}
+            </NavLink>
+          ))}
+        </nav>
+        <div className="header-actions">
+          <NavLink to="/cart" className="cart-link" aria-label="Cart">
+            Cart
+            {cartCount > 0 ? <span className="cart-badge">{cartCount}</span> : null}
+          </NavLink>
           {ready && user ? (
             <>
-              <span className="who">
-                {user.displayName}
-                {user.isPremium ? " · Premium" : ""}
-              </span>
+              <span className="who">{user.displayName}</span>
               <button type="button" className="linkish" onClick={() => void signOut()}>
                 Sign out
               </button>
             </>
           ) : (
-            <>
-              <NavLink to="/login">Sign in</NavLink>
-              <NavLink to="/signup" className="cta">
-                Sign up
-              </NavLink>
-            </>
+            <NavLink to="/login">Sign in</NavLink>
           )}
-        </nav>
+        </div>
       </header>
-      <nav className="catnav" aria-label="Categories">
-        {CATEGORIES.map((category) => (
-          <div className="catnav-item" key={category.slug}>
-            <NavLink to={categoryPath(category.slug)}>{category.label}</NavLink>
-            <div className="catnav-panel">
-              <p>{category.blurb}</p>
-              <Link to={categoryPath(category.slug)}>Shop {category.label}</Link>
-            </div>
-          </div>
-        ))}
-      </nav>
       <main className="content">
         <Outlet />
       </main>
+      <footer className="site-footer">
+        <div>
+          <NavLink to="/" className="brand">
+            <span className="brand-mark">SS</span>
+            <span>
+              <strong>SmartShop</strong>
+              <em>Everyday essentials</em>
+            </span>
+          </NavLink>
+        </div>
+        <nav>
+          <Link to="/orders">Orders</Link>
+          <Link to="/chat">Chat</Link>
+          <Link to="/cart">Cart</Link>
+          <Link to="/login">Sign in</Link>
+        </nav>
+        <p>© {new Date().getFullYear()} SmartShop. All rights reserved.</p>
+      </footer>
     </div>
   );
 }

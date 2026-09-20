@@ -33,7 +33,7 @@ export function CategoryPage() {
         <ul className="grid">
           {products.map((product) => (
             <li key={product.productId}>
-              <ProductCard product={product} />
+              <ProductCard product={product} variant="deal" />
             </li>
           ))}
         </ul>

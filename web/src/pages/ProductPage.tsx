@@ -5,6 +5,7 @@ import { ApiRequestError, getProduct, upsertCartItem } from "../api";
 import { useAuth } from "../auth";
 import { categoryPath, formatCategoryLabel } from "../catalog";
 import { formatCents } from "../money";
+import { RatingRow } from "../ProductCard";
 
 export function ProductPage() {
   const { productId = "" } = useParams();
@@ -76,6 +77,7 @@ export function ProductPage() {
         </p>
         <p className="eyebrow">{formatCategoryLabel(product.category)}</p>
         <h1>{product.name}</h1>
+        <RatingRow product={product} />
         <p className="lede">{product.description}</p>
         <p className="price">{formatCents(product.unitPriceCents)}</p>
         <p className="muted">{product.stockQty} in stock</p>
