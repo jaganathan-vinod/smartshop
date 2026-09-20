@@ -67,4 +67,8 @@ Include:
   }
 }
 
-await main();
+main().catch((caught: unknown) => {
+  const message = caught instanceof Error ? caught.message : String(caught);
+  console.error(message);
+  return writeFile("logs/npm-audit-suggestions.md", suggestionsMarkdown(`Agent script crashed:\n\n${message}`));
+});

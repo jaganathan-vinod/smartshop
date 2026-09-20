@@ -43,11 +43,13 @@ jobs:
           fi
 
       - name: Ask Cursor agent for suggestions
+        continue-on-error: true
         env:
           CURSOR_TO_GIT_API_KEY: ${{ secrets.CURSOR_TO_GIT_API_KEY }}
         run: npx tsx scripts/pr-audit-agent.ts
 
       - name: Commit logs to the PR branch
+        if: ${{ !cancelled() }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
