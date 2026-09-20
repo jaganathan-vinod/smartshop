@@ -32,3 +32,5 @@ cdk.context.json
 # Logs
 *.log
 npm-debug.log*
+logs/npm-audit.json
+logs/npm-audit-suggestions.md

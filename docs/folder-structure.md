@@ -87,14 +87,12 @@ smartshop/
 └── cdk-outputs.json           # npm run deploy  (ApiUrl, CloudFrontUrl, …)
 ```
 
-GitHub Actions also writes committed logs on PRs to `main` (not gitignored):
+GitHub Actions writes npm audit JSON and Cursor suggestions on the runner only. They are a **PR comment** plus artifact `npm-audit-cursor-suggestions`, not committed files.
 
 ```
 smartshop/
 └── logs/
-    ├── README.md
-    ├── npm-audit.json              # npm audit JSON from the security workflow
-    └── npm-audit-suggestions.md    # Cursor SDK Agent.prompt suggestions
+    └── README.md
 ```
 
 Hashed filenames under `web/dist/assets/` and hashed `infra/cdk.out/asset.*` folders change on each build. Do not hard-code those names.

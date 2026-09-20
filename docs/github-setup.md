@@ -94,7 +94,7 @@ git push
 
 ## 6. GitHub Actions security check
 
-`.github/workflows/security.yml` runs on pull requests to `main`. It installs workspaces, captures `npm audit` JSON (moderate findings do **not** fail the job), sends that JSON to a Cursor local agent via `@cursor/sdk` (`Agent.prompt`), and commits suggestions under `logs/`.
+`.github/workflows/security.yml` runs on pull requests to `main`. It installs workspaces, captures `npm audit` JSON (moderate findings do **not** fail the job), sends that JSON to a Cursor local agent via `@cursor/sdk` (`Agent.prompt`), then posts both the JSON and the suggestions as a **PR comment** and a workflow artifact (`npm-audit-cursor-suggestions`). It does not push to `logs/`.
 
 Add a repository secret:
 
@@ -102,4 +102,4 @@ Add a repository secret:
 2. GitHub repo **Settings → Secrets and variables → Actions**
 3. Name: `CURSOR_TO_GIT_API_KEY`
 
-Without the secret, the workflow still succeeds and writes a skip note in `logs/npm-audit-suggestions.md`.
+Without the secret, the workflow still succeeds and the PR comment notes that the agent was skipped.
