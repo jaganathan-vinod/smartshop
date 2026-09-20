@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Link, NavLink, Outlet, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { getCart } from "./api";
 import { useAuth } from "./auth";
 import { CATEGORIES, categoryPath } from "./catalog";
@@ -7,6 +7,7 @@ import { CATEGORIES, categoryPath } from "./catalog";
 export function Layout() {
   const { ready, user, signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [params] = useSearchParams();
   const q = params.get("q") ?? "";
   const [cartCount, setCartCount] = useState(0);
@@ -17,21 +18,26 @@ export function Layout() {
       return;
     }
     let cancelled = false;
-    getCart()
-      .then((result) => {
-        if (!cancelled) {
-          setCartCount(result.items.reduce((sum, item) => sum + item.quantity, 0));
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setCartCount(0);
-        }
-      });
+    function loadCount() {
+      getCart()
+        .then((result) => {
+          if (!cancelled) {
+            setCartCount(result.items.reduce((sum, item) => sum + item.quantity, 0));
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setCartCount(0);
+          }
+        });
+    }
+    loadCount();
+    window.addEventListener("smartshop:cart-changed", loadCount);
     return () => {
       cancelled = true;
+      window.removeEventListener("smartshop:cart-changed", loadCount);
     };
-  }, [user]);
+  }, [user, location.pathname]);
 
   return (
     <div className="shell">
@@ -71,6 +77,7 @@ export function Layout() {
           ))}
         </nav>
         <div className="header-actions">
+          <NavLink to="/chat">Chat</NavLink>
           <NavLink to="/cart" className="cart-link" aria-label="Cart">
             Cart
             {cartCount > 0 ? <span className="cart-badge">{cartCount}</span> : null}

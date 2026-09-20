@@ -1,0 +1,8 @@
+**/node_modules
+cdk.out
+infra/cdk.out
+web/dist
+.git
+logs
+**/.env
+**/.env.local

@@ -15,7 +15,7 @@
 | Voice | Runtime WebSocket + Amazon Nova Sonic (speech-to-speech, barge-in) |
 | Shopping system of record | Existing Lambda modules (`catalog`, `cart`, `pricing`, `orders`) |
 | Tool integration (v1) | **Service-to-service:** Runtime IAM role → IAM-authenticated internal tool API (or `lambda:InvokeFunction`) |
-| Customer identity | Cognito JWT on Runtime **inbound**. Runtime injects `userId` = JWT `sub`. Tools **never** accept `userId` from the model. |
+| Customer identity | Cognito JWT on Runtime **inbound**. Runtime must allowlist `Authorization` so the agent can read JWT `sub` and inject `userId`. Tools **never** accept `userId` from the model. |
 | Public REST | **Frozen** JWT `/v1/cart`, `/v1/quotes`, `/v1/orders`, `/v1/me`, admin — same contracts as today |
 | Existing SPA | **Frozen** all shopping/auth routes except replacing the `/chat` stub |
 | Deferred | AgentCore Gateway MCP wrapping public APIs; OAuth on-behalf-of / token passthrough |

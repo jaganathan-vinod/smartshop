@@ -230,9 +230,10 @@ Version prefix `/v1`. JSON in/out. Zod schemas per route.
 
 ### 5.6 Assistant (customer JWT + Runtime)
 
-The SPA does **not** send chat turns to the shopping Lambda. It invokes AgentCore Runtime with the Cognito JWT.
+The SPA does **not** send chat turns to the shopping Lambda. It invokes AgentCore Runtime with the Cognito JWT. Runtime `RequestHeaderConfiguration` allowlists `Authorization` so the agent container receives that JWT and can copy `sub` into `X-SmartShop-User-Id` (AgentCore otherwise drops the header after edge validation).
 
 - Runtime HTTP: `InvokeAgentRuntime` — `{ conversationId?, message?, imageObjectKey? }` → streamed `{ conversationId, reply, toolsUsed[], orderNumber? }`
+- Text/vision model: Amazon Nova Lite via the APAC inference profile `apac.amazon.nova-lite-v1:0` (`ap-southeast-1` does not support on-demand `amazon.nova-lite-v1:0`)
 - Runtime WebSocket: `/ws` for Nova Sonic (audio both ways; same tools)
 - `POST /v1/assistant/uploads` — customer JWT; returns `{ uploadUrl, objectKey }` for a short-lived image put
 

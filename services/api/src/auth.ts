@@ -11,6 +11,7 @@ export type JwtClaims = {
 type RequestStore = {
   claims: JwtClaims | null;
   requestId: string;
+  iamUserArn: string | null;
 };
 
 const storage = new AsyncLocalStorage<RequestStore>();
@@ -82,14 +83,41 @@ export function claimsFromEvent(event: LambdaEvent): JwtClaims | null {
   return null;
 }
 
+export function iamArnFromEvent(event: LambdaEvent): string | null {
+  const requestContext = "requestContext" in event ? event.requestContext : undefined;
+  if (!requestContext || typeof requestContext !== "object") {
+    return null;
+  }
+  const authorizer = "authorizer" in requestContext ? requestContext.authorizer : undefined;
+  if (!authorizer || typeof authorizer !== "object") {
+    return null;
+  }
+  const iam = "iam" in authorizer ? authorizer.iam : undefined;
+  if (!iam || typeof iam !== "object") {
+    return null;
+  }
+  return asString((iam as { userArn?: unknown }).userArn) ?? null;
+}
+
 export function runWithClaims<T>(
   claims: JwtClaims | null,
   fn: () => T,
 ): T {
   return storage.run(
-    { claims, requestId: currentRequestId() ?? "test" },
+    { claims, requestId: currentRequestId() ?? "test", iamUserArn: null },
     fn,
   );
+}
+
+export function runWithInternalCaller<T>(iamUserArn: string, fn: () => T): T {
+  return storage.run(
+    { claims: null, requestId: "test", iamUserArn },
+    fn,
+  );
+}
+
+export function currentIamArn(): string | null {
+  return storage.getStore()?.iamUserArn ?? null;
 }
 
 export function currentClaims(): JwtClaims | null {
@@ -131,7 +159,11 @@ export function withClaims(handler: AwsHandler): AwsHandler {
         ? context.awsRequestId
         : crypto.randomUUID();
     return storage.run(
-      { claims: claimsFromEvent(event), requestId },
+      {
+        claims: claimsFromEvent(event),
+        requestId,
+        iamUserArn: iamArnFromEvent(event),
+      },
       () => handler(event, context),
     );
   };
