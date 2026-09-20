@@ -30,6 +30,10 @@ if (!tableName) {
 
 const now = new Date().toISOString();
 
+function photo(id: string): string {
+  return `https://images.unsplash.com/${id}?auto=format&fit=crop&w=800&h=800&q=80`;
+}
+
 const seedInput: Array<Omit<Product, "nameLower" | "createdAt" | "updatedAt" | "currency" | "active">> = [
   {
     productId: "prod-wireless-mouse",
@@ -38,7 +42,7 @@ const seedInput: Array<Omit<Product, "nameLower" | "createdAt" | "updatedAt" | "
     category: "electronics",
     unitPriceCents: 2499,
     stockQty: 40,
-    imageUrl: "https://placehold.co/400x400?text=Mouse",
+    imageUrl: photo("photo-1527864550417-7fd91fc51a46"),
   },
   {
     productId: "prod-usbc-hub",
@@ -47,7 +51,7 @@ const seedInput: Array<Omit<Product, "nameLower" | "createdAt" | "updatedAt" | "
     category: "electronics",
     unitPriceCents: 3999,
     stockQty: 25,
-    imageUrl: "https://placehold.co/400x400?text=Hub",
+    imageUrl: photo("photo-1625948515291-69613efd103f"),
   },
   {
     productId: "prod-mech-keyboard",
@@ -56,7 +60,7 @@ const seedInput: Array<Omit<Product, "nameLower" | "createdAt" | "updatedAt" | "
     category: "electronics",
     unitPriceCents: 8999,
     stockQty: 18,
-    imageUrl: "https://placehold.co/400x400?text=Keyboard",
+    imageUrl: photo("photo-1511467687858-23d96c32e4ae"),
   },
   {
     productId: "prod-ceramic-mug",
@@ -65,7 +69,7 @@ const seedInput: Array<Omit<Product, "nameLower" | "createdAt" | "updatedAt" | "
     category: "home",
     unitPriceCents: 1299,
     stockQty: 80,
-    imageUrl: "https://placehold.co/400x400?text=Mug",
+    imageUrl: photo("photo-1514228742587-6b1558fcca3d"),
   },
   {
     productId: "prod-kettle",
@@ -74,7 +78,7 @@ const seedInput: Array<Omit<Product, "nameLower" | "createdAt" | "updatedAt" | "
     category: "home",
     unitPriceCents: 4599,
     stockQty: 22,
-    imageUrl: "https://placehold.co/400x400?text=Kettle",
+    imageUrl: photo("photo-1495474472287-4d71bcdd2085"),
   },
   {
     productId: "prod-desk-lamp",
@@ -83,7 +87,7 @@ const seedInput: Array<Omit<Product, "nameLower" | "createdAt" | "updatedAt" | "
     category: "home",
     unitPriceCents: 3299,
     stockQty: 30,
-    imageUrl: "https://placehold.co/400x400?text=Lamp",
+    imageUrl: photo("photo-1513506003901-1e6a229e2d15"),
   },
   {
     productId: "prod-water-bottle",
@@ -92,7 +96,7 @@ const seedInput: Array<Omit<Product, "nameLower" | "createdAt" | "updatedAt" | "
     category: "home",
     unitPriceCents: 2199,
     stockQty: 50,
-    imageUrl: "https://placehold.co/400x400?text=Bottle",
+    imageUrl: photo("photo-1602143407151-7111542de6e8"),
   },
   {
     productId: "prod-cotton-tee",
@@ -101,7 +105,7 @@ const seedInput: Array<Omit<Product, "nameLower" | "createdAt" | "updatedAt" | "
     category: "apparel",
     unitPriceCents: 1999,
     stockQty: 60,
-    imageUrl: "https://placehold.co/400x400?text=Tee",
+    imageUrl: photo("photo-1521572163474-6864f9cf17ab"),
   },
   {
     productId: "prod-running-socks",
@@ -110,7 +114,7 @@ const seedInput: Array<Omit<Product, "nameLower" | "createdAt" | "updatedAt" | "
     category: "apparel",
     unitPriceCents: 899,
     stockQty: 90,
-    imageUrl: "https://placehold.co/400x400?text=Socks",
+    imageUrl: photo("photo-1586350977771-b3b0abd50c82"),
   },
   {
     productId: "prod-canvas-tote",
@@ -119,7 +123,7 @@ const seedInput: Array<Omit<Product, "nameLower" | "createdAt" | "updatedAt" | "
     category: "apparel",
     unitPriceCents: 1599,
     stockQty: 45,
-    imageUrl: "https://placehold.co/400x400?text=Tote",
+    imageUrl: photo("photo-1544816155-12df9643f363"),
   },
   {
     productId: "prod-notebook-set",
@@ -128,7 +132,7 @@ const seedInput: Array<Omit<Product, "nameLower" | "createdAt" | "updatedAt" | "
     category: "stationery",
     unitPriceCents: 1499,
     stockQty: 70,
-    imageUrl: "https://placehold.co/400x400?text=Notebook",
+    imageUrl: photo("photo-1531346878377-a5be20888e57"),
   },
   {
     productId: "prod-gel-pens",
@@ -137,7 +141,7 @@ const seedInput: Array<Omit<Product, "nameLower" | "createdAt" | "updatedAt" | "
     category: "stationery",
     unitPriceCents: 699,
     stockQty: 120,
-    imageUrl: "https://placehold.co/400x400?text=Pens",
+    imageUrl: photo("photo-1455390582262-044cdead277a"),
   },
 ];
 
