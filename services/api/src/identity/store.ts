@@ -9,16 +9,28 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
+export function resolveProfileFields(
+  claims: { email?: string; name?: string },
+  existing?: { email?: string; displayName?: string } | null,
+): { email: string; displayName: string } | null {
+  const email = claims.email ?? existing?.email;
+  if (!email) {
+    return null;
+  }
+  const displayName = claims.name?.trim() || existing?.displayName || email;
+  return { email, displayName };
+}
+
 export async function upsertMe(claims: JwtClaims): Promise<UserProfile> {
   const existing = await getUser(claims.sub);
   const timestamp = nowIso();
-  const email = claims.email ?? existing?.email;
-  const displayName = claims.name ?? existing?.displayName;
-  if (!email || !displayName) {
+  const profile = resolveProfileFields(claims, existing);
+  if (!profile) {
     throw Object.assign(new Error("PROFILE_INCOMPLETE"), {
       code: "PROFILE_INCOMPLETE",
     });
   }
+  const { email, displayName } = profile;
 
   if (!existing) {
     const created = userProfileSchema.parse({

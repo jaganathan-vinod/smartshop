@@ -29,9 +29,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await ensureAmplify();
       const { getCurrentUser } = await import("aws-amplify/auth");
       await getCurrentUser();
-      setUser(await getMe());
-    } catch {
+      const me = await getMe();
+      setUser(me);
+    } catch (error) {
       setUser(null);
+      throw error;
     }
   }, []);
 
@@ -58,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(null);
         }
         if (payload.event === "signedIn") {
-          void refresh();
+          void refresh().catch(() => undefined);
         }
       });
     });

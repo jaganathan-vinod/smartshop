@@ -1,15 +1,24 @@
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
+import { useAuth } from "../auth";
 import { ensureAmplify } from "../amplify";
-import { cognitoErrorMessage, isValidEmail } from "../validation";
+import { cognitoErrorMessage, isAlreadyAuthenticated, isValidEmail } from "../validation";
 
 export function ConfirmPage() {
   const navigate = useNavigate();
+  const { ready, refresh, user } = useAuth();
   const [params] = useSearchParams();
   const [email, setEmail] = useState(params.get("email") ?? "");
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  if (!ready) {
+    return <p className="muted">Loading…</p>;
+  }
+  if (user && (!email || user.email.toLowerCase() === email.toLowerCase())) {
+    return <Navigate to="/" replace />;
+  }
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -25,8 +34,27 @@ export function ConfirmPage() {
     setBusy(true);
     try {
       await ensureAmplify();
-      const { confirmSignUp } = await import("aws-amplify/auth");
-      await confirmSignUp({ username: email.trim(), confirmationCode: code.trim() });
+      const { autoSignIn, confirmSignUp } = await import("aws-amplify/auth");
+      const confirmed = await confirmSignUp({
+        username: email.trim(),
+        confirmationCode: code.trim(),
+      });
+      if (confirmed.nextStep.signUpStep === "COMPLETE_AUTO_SIGN_IN") {
+        try {
+          const signedIn = await autoSignIn();
+          if (signedIn.isSignedIn) {
+            await refresh();
+            navigate("/", { replace: true });
+            return;
+          }
+        } catch (autoError) {
+          if (isAlreadyAuthenticated(autoError)) {
+            await refresh();
+            navigate("/", { replace: true });
+            return;
+          }
+        }
+      }
       navigate("/login", { replace: true, state: { confirmed: email.trim() } });
     } catch (caught) {
       setError(cognitoErrorMessage(caught));

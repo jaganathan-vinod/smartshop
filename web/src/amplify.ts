@@ -12,6 +12,7 @@ export function ensureAmplify(): Promise<void> {
           Cognito: {
             userPoolId: config.userPoolId,
             userPoolClientId: config.userPoolClientId,
+            loginWith: { email: true },
           },
         },
       });

@@ -6,7 +6,8 @@
     "synth": "cdk synth",
     "diff": "cdk diff",
     "deploy": "cdk deploy --outputs-file ../cdk-outputs.json",
-    "destroy": "cdk destroy"
+    "destroy": "cdk destroy",
+    "test": "tsx --test lib/**/*.test.ts"
   },
   "dependencies": {
     "aws-cdk-lib": "^2.177.0",

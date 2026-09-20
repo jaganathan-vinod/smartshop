@@ -1,24 +1,32 @@
 import { useState, type FormEvent } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth";
-import { ensureAmplify } from "../amplify";
+import { signInWithPassword } from "../cognitoSession";
 import { cognitoErrorMessage, isUnconfirmedUser } from "../validation";
 
 type LocationState = {
   from?: { pathname?: string };
   confirmed?: string;
+  existing?: string;
 };
 
 export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const state = (location.state as LocationState | null) ?? {};
-  const { refresh, user } = useAuth();
-  const [email, setEmail] = useState(state.confirmed ?? "");
+  const { ready, refresh, user } = useAuth();
+  const [email, setEmail] = useState(state.confirmed ?? state.existing ?? "");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    state.existing
+      ? "An account with this email already exists. Sign in instead."
+      : null,
+  );
   const [busy, setBusy] = useState(false);
 
+  if (!ready) {
+    return <p className="muted">Loading…</p>;
+  }
   if (user) {
     return <Navigate to={state.from?.pathname || "/"} replace />;
   }
@@ -28,9 +36,7 @@ export function LoginPage() {
     setError(null);
     setBusy(true);
     try {
-      await ensureAmplify();
-      const { signIn } = await import("aws-amplify/auth");
-      const result = await signIn({ username: email.trim(), password });
+      const result = await signInWithPassword(email.trim(), password);
       if (result.nextStep.signInStep === "CONFIRM_SIGN_UP") {
         navigate(`/confirm?email=${encodeURIComponent(email.trim())}`);
         return;

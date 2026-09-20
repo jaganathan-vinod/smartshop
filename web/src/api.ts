@@ -7,7 +7,8 @@ import type {
   QuoteResponse,
 } from "@smartshop/shared";
 import { loadConfig } from "./config";
-import { ensureAmplify } from "./amplify";
+import { requireIdToken } from "./cognitoSession";
+import { isNetworkFailure } from "./validation";
 
 export class ApiRequestError extends Error {
   constructor(
@@ -23,15 +24,8 @@ export class ApiRequestError extends Error {
 
 async function authHeaders(extra?: HeadersInit, authenticate = true): Promise<Headers> {
   const headers = new Headers(extra);
-  if (!authenticate) {
-    return headers;
-  }
-  await ensureAmplify();
-  const { fetchAuthSession } = await import("aws-amplify/auth");
-  const session = await fetchAuthSession();
-  const token = session.tokens?.idToken?.toString();
-  if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
+  if (authenticate) {
+    headers.set("Authorization", `Bearer ${await requireIdToken()}`);
   }
   return headers;
 }
@@ -46,7 +40,15 @@ async function request<T>(
   if (init.body && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
-  const response = await fetch(`${config.apiUrl}${path}`, { ...init, headers });
+  let response: Response;
+  try {
+    response = await fetch(`${config.apiUrl}${path}`, { ...init, headers });
+  } catch (error) {
+    if (isNetworkFailure(error)) {
+      throw new ApiRequestError(0, "NETWORK_ERROR", "Could not reach SmartShop. Try again.");
+    }
+    throw error;
+  }
   const text = await response.text();
   const body = text ? (JSON.parse(text) as unknown) : null;
   if (!response.ok) {

@@ -22,6 +22,10 @@ function asString(value: unknown): string | undefined {
   return undefined;
 }
 
+function emailLike(value: string | undefined): string | undefined {
+  return value && value.includes("@") ? value : undefined;
+}
+
 export function parseGroups(value: unknown): string[] {
   if (Array.isArray(value)) {
     return value.filter((item): item is string => typeof item === "string");
@@ -47,8 +51,8 @@ function fromRecord(claims: Record<string, unknown>): JwtClaims | null {
   }
   return {
     sub,
-    email: asString(claims.email),
-    name: asString(claims.name),
+    email: asString(claims.email) ?? emailLike(asString(claims["cognito:username"])),
+    name: asString(claims.name) ?? asString(claims.given_name),
     groups: parseGroups(claims["cognito:groups"]),
   };
 }

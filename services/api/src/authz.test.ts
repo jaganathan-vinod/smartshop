@@ -75,7 +75,27 @@ describe("claimsFromEvent", () => {
       },
     } as unknown as Parameters<typeof claimsFromEvent>[0]);
     assert.equal(claims?.sub, "user-a");
+    assert.equal(claims?.email, "a@example.com");
     assert.deepEqual(claims?.groups, ["admin"]);
+  });
+
+  it("uses cognito:username when email is missing", () => {
+    const claims = claimsFromEvent({
+      version: "2.0",
+      routeKey: "GET /v1/me",
+      rawPath: "/v1/me",
+      requestContext: {
+        authorizer: {
+          jwt: {
+            claims: {
+              sub: "user-a",
+              "cognito:username": "a@example.com",
+            },
+          },
+        },
+      },
+    } as unknown as Parameters<typeof claimsFromEvent>[0]);
+    assert.equal(claims?.email, "a@example.com");
   });
 });
 
