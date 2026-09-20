@@ -91,3 +91,15 @@ git push
 - Cognito app client secret (v1 uses a public SPA client with no secret)
 - AWS access keys, `cdk.context.json` secrets, `.aws/`
 - `node_modules/`, `cdk.out/`, `dist/`
+
+## 6. GitHub Actions security check
+
+`.github/workflows/security.yml` runs on pull requests to `main`. It installs workspaces, captures `npm audit` JSON (moderate findings do **not** fail the job), sends that JSON to a Cursor local agent via `@cursor/sdk` (`Agent.prompt`), and commits suggestions under `logs/`.
+
+Add a repository secret:
+
+1. Create an API key at [Cursor Dashboard → API Keys](https://cursor.com/dashboard/integrations)
+2. GitHub repo **Settings → Secrets and variables → Actions**
+3. Name: `CURSOR_TO_GIT_API_KEY`
+
+Without the secret, the workflow still succeeds and writes a skip note in `logs/npm-audit-suggestions.md`.
