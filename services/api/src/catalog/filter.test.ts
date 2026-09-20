@@ -44,6 +44,22 @@ describe("filterProducts", () => {
     );
   });
 
+  it("filters by exact category", () => {
+    const result = filterProducts(catalog, { category: "electronics" });
+    assert.deepEqual(
+      result.map((item) => item.productId),
+      ["prod-mouse"],
+    );
+  });
+
+  it("combines category with name search", () => {
+    const result = filterProducts(catalog, { category: "home", q: "mug" });
+    assert.deepEqual(
+      result.map((item) => item.productId),
+      ["prod-mug"],
+    );
+  });
+
   it("returns empty list for unknown category", () => {
     const result = filterProducts(catalog, { category: "toys" });
     assert.deepEqual(result, []);

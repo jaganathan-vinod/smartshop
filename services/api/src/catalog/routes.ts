@@ -5,14 +5,13 @@ import {
   productIdSchema,
 } from "@smartshop/shared";
 import { jsonError, zodError } from "../http.js";
-import { filterProducts } from "./filter.js";
-import { getProduct, listAllProducts } from "./store.js";
+import { getProduct, listCatalogProducts } from "./store.js";
 
 export function registerCatalogRoutes(app: Hono): void {
   app.get("/v1/products", async (c) => {
     try {
       const query = listProductsQuerySchema.parse(c.req.query());
-      const products = filterProducts(await listAllProducts(), query);
+      const products = await listCatalogProducts(query);
       return c.json({ products });
     } catch (error) {
       if (error instanceof ZodError) {

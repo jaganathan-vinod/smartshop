@@ -1,47 +1,113 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { useEffect, useState, type FormEvent } from "react";
+import { Link, NavLink, Outlet, useNavigate, useSearchParams } from "react-router-dom";
+import { getCart } from "./api";
 import { useAuth } from "./auth";
+import { CATEGORIES, categoryPath } from "./catalog";
 
 export function Layout() {
   const { ready, user, signOut } = useAuth();
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const q = params.get("q") ?? "";
+  const [cartCount, setCartCount] = useState(0);
+
+  useEffect(() => {
+    if (!user) {
+      setCartCount(0);
+      return;
+    }
+    let cancelled = false;
+    getCart()
+      .then((result) => {
+        if (!cancelled) {
+          setCartCount(result.items.reduce((sum, item) => sum + item.quantity, 0));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setCartCount(0);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   return (
     <div className="shell">
-      <header className="topbar">
-        <NavLink to="/" className="brand">
+      <header className="store-header">
+        <NavLink to="/" end className="brand">
           <span className="brand-mark">SS</span>
           <span>
             <strong>SmartShop</strong>
-            <em>Catalogue & checkout</em>
+            <em>Everyday essentials</em>
           </span>
         </NavLink>
-        <nav className="nav">
-          <NavLink to="/">Shop</NavLink>
-          <NavLink to="/cart">Cart</NavLink>
-          <NavLink to="/orders">Orders</NavLink>
-          <NavLink to="/chat">Chat</NavLink>
+        <form
+          className="search search-top"
+          key={q}
+          onSubmit={(event: FormEvent<HTMLFormElement>) => {
+            event.preventDefault();
+            const value = String(new FormData(event.currentTarget).get("q") ?? "").trim();
+            navigate(value ? `/?q=${encodeURIComponent(value)}` : "/");
+          }}
+        >
+          <input
+            type="search"
+            name="q"
+            defaultValue={q}
+            placeholder="Search for products, categories…"
+            aria-label="Search products"
+          />
+        </form>
+        <nav className="header-nav" aria-label="Store">
+          <NavLink to="/" end>
+            Home
+          </NavLink>
+          {CATEGORIES.filter((category) => category.slug !== "home").map((category) => (
+            <NavLink key={category.slug} to={categoryPath(category.slug)}>
+              {category.label}
+            </NavLink>
+          ))}
+        </nav>
+        <div className="header-actions">
+          <NavLink to="/cart" className="cart-link" aria-label="Cart">
+            Cart
+            {cartCount > 0 ? <span className="cart-badge">{cartCount}</span> : null}
+          </NavLink>
           {ready && user ? (
             <>
-              <span className="who">
-                {user.displayName}
-                {user.isPremium ? " · Premium" : ""}
-              </span>
+              <span className="who">{user.displayName}</span>
               <button type="button" className="linkish" onClick={() => void signOut()}>
                 Sign out
               </button>
             </>
           ) : (
-            <>
-              <NavLink to="/login">Sign in</NavLink>
-              <NavLink to="/signup" className="cta">
-                Sign up
-              </NavLink>
-            </>
+            <NavLink to="/login">Sign in</NavLink>
           )}
-        </nav>
+        </div>
       </header>
       <main className="content">
         <Outlet />
       </main>
+      <footer className="site-footer">
+        <div>
+          <NavLink to="/" className="brand">
+            <span className="brand-mark">SS</span>
+            <span>
+              <strong>SmartShop</strong>
+              <em>Everyday essentials</em>
+            </span>
+          </NavLink>
+        </div>
+        <nav>
+          <Link to="/orders">Orders</Link>
+          <Link to="/chat">Chat</Link>
+          <Link to="/cart">Cart</Link>
+          <Link to="/login">Sign in</Link>
+        </nav>
+        <p>© {new Date().getFullYear()} SmartShop. All rights reserved.</p>
+      </footer>
     </div>
   );
 }

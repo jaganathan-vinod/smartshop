@@ -18,6 +18,7 @@ Startup e-commerce MVP: customers sign up and sign in with Amazon Cognito (email
 | [docs/github-setup.md](docs/github-setup.md) | Connect this folder to a private GitHub repo |
 | [docs/one-time-setup.md](docs/one-time-setup.md) | One-time laptop setup: Node, gh, AWS CLI, `aws configure`, CDK bootstrap |
 | [docs/runbook.md](docs/runbook.md) | Operator runbook: Cognito, admin group, premium toggle, CORS, alarms |
+| [docs/folder-structure.md](docs/folder-structure.md) | Source folders vs npm/CDK build artifacts |
 
 ## Stack (v1)
 

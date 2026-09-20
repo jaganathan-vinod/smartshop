@@ -1,0 +1,24 @@
+name: Security check
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  npm-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out PR code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install workspace dependencies
+        run: npm ci
+
+      - name: Audit npm workspaces
+        run: npm audit --workspaces --include-workspace-root
