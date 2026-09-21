@@ -109,14 +109,24 @@ img {
 }
 
 .header-nav a,
-.header-actions a {
+.header-actions a,
+.header-actions .header-chat {
   color: inherit;
   text-decoration: none;
   font-size: 0.95rem;
 }
 
+.header-chat {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
 .header-nav a.active,
-.header-actions a.active {
+.header-actions a.active,
+.header-chat.is-open {
   color: var(--accent-dark);
   font-weight: 700;
   box-shadow: inset 0 -2px 0 var(--accent);
@@ -907,9 +917,18 @@ fieldset {
   gap: 1rem;
 }
 
-.site-footer a {
+.site-footer a,
+.site-footer .footer-chat {
   color: inherit;
   text-decoration: none;
+}
+
+.footer-chat {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
 }
 
 .circles {
@@ -1032,21 +1051,54 @@ fieldset {
   max-width: 40rem;
 }
 
-.shell:has(.chat-app) {
-  height: 100dvh;
-  overflow: hidden;
-}
-
-.shell:has(.chat-app) .site-footer {
+.chat-pane {
+  position: fixed;
+  top: var(--store-header-height, 4.75rem);
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  width: min(23.75rem, 100%);
   display: none;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--card);
+  border-left: 1px solid var(--line);
 }
 
-.content:has(.chat-app) {
-  max-width: none;
-  width: 100%;
-  padding: 0;
+.chat-pane.is-open {
   display: flex;
+}
+
+.shell:has(.chat-pane.is-open) .store-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.chat-pane .chat-app {
+  flex: 1;
   min-height: 0;
+  height: 100%;
+}
+
+.chat-pane .chat-head {
+  grid-template-columns: auto 1fr auto auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.chat-pane .chat-log,
+.chat-pane .chat-dock {
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.chat-close {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
 }
 
 .chat-app {
@@ -1390,10 +1442,20 @@ button.chat-send {
   min-height: 5rem;
 }
 
-@media (max-width: 900px) {
-  .content:has(.chat-app) {
-    padding: 0;
+@media (max-width: 800px) {
+  .chat-pane.is-open {
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 80;
   }
+
+  body:has(.chat-pane.is-open) {
+    overflow: hidden;
+  }
+}
+
+@media (max-width: 900px) {
   .chat-head,
   .chat-log,
   .chat-dock {

@@ -155,29 +155,31 @@ export function AdminReportsPage() {
           stock={stock}
           badge={badge}
         />
-      ) : (
+      ) : error ? null : (
         <p className="muted">Loading metrics…</p>
       )}
-      <form
-        className="report-prompt"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void generate();
-        }}
-      >
-        <label>
-          Dashboard prompt
-          <textarea
-            rows={4}
-            value={prompt}
-            disabled={busy}
-            onChange={(event) => setPrompt(event.target.value)}
-          />
-        </label>
-        <button type="submit" disabled={busy || prompt.trim().length < 8}>
-          Generate preview
-        </button>
-      </form>
+      {summary ? (
+        <form
+          className="report-prompt"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void generate();
+          }}
+        >
+          <label>
+            Dashboard prompt
+            <textarea
+              rows={4}
+              value={prompt}
+              disabled={busy}
+              onChange={(event) => setPrompt(event.target.value)}
+            />
+          </label>
+          <button type="submit" disabled={busy || prompt.trim().length < 8}>
+            Generate preview
+          </button>
+        </form>
+      ) : null}
       {job ? (
         <p className="muted">
           Job {job.jobId} · {job.status}

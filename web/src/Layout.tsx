@@ -1,16 +1,38 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { getCart } from "./api";
 import { useAuth } from "./auth";
 import { CATEGORIES, categoryPath } from "./catalog";
+import { useChat } from "./chat";
+import { ChatPanel } from "./pages/ChatPage";
 
 export function Layout() {
   const { ready, user, isAdmin, signOut } = useAuth();
+  const { paneVisible, toggleChat } = useChat();
   const navigate = useNavigate();
   const location = useLocation();
   const [params] = useSearchParams();
   const q = params.get("q") ?? "";
   const [cartCount, setCartCount] = useState(0);
+  const headerRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const headerNode = headerRef.current;
+    if (!headerNode) {
+      return;
+    }
+    const measured: HTMLElement = headerNode;
+    function applyHeight() {
+      document.documentElement.style.setProperty(
+        "--store-header-height",
+        `${measured.offsetHeight}px`,
+      );
+    }
+    applyHeight();
+    const observer = new ResizeObserver(applyHeight);
+    observer.observe(measured);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (!user) {
@@ -41,7 +63,7 @@ export function Layout() {
 
   return (
     <div className="shell">
-      <header className="store-header">
+      <header className="store-header" ref={headerRef}>
         <NavLink to="/" end className="brand">
           <span className="brand-mark">SS</span>
           <span>
@@ -78,7 +100,19 @@ export function Layout() {
         </nav>
         <div className="header-actions">
           {isAdmin ? <NavLink to="/admin/reports">Reports</NavLink> : null}
-          <NavLink to="/chat">Chat</NavLink>
+          {user ? (
+            <button
+              type="button"
+              className={`header-chat${paneVisible ? " is-open" : ""}`}
+              aria-expanded={paneVisible}
+              aria-controls="shop-assistant-pane"
+              onClick={toggleChat}
+            >
+              Chat
+            </button>
+          ) : (
+            <NavLink to="/chat">Chat</NavLink>
+          )}
           <NavLink to="/cart" className="cart-link" aria-label="Cart">
             Cart
             {cartCount > 0 ? <span className="cart-badge">{cartCount}</span> : null}
@@ -98,6 +132,7 @@ export function Layout() {
       <main className="content">
         <Outlet />
       </main>
+      {user ? <ChatPanel key={user.userId} /> : null}
       <footer className="site-footer">
         <div>
           <NavLink to="/" className="brand">
@@ -110,7 +145,13 @@ export function Layout() {
         </div>
         <nav>
           <Link to="/orders">Orders</Link>
-          <Link to="/chat">Chat</Link>
+          {user ? (
+            <button type="button" className="footer-chat" onClick={toggleChat}>
+              Chat
+            </button>
+          ) : (
+            <Link to="/chat">Chat</Link>
+          )}
           <Link to="/cart">Cart</Link>
           <Link to="/login">Sign in</Link>
         </nav>

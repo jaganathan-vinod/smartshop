@@ -58,7 +58,52 @@ function fromRecord(claims: Record<string, unknown>): JwtClaims | null {
   };
 }
 
-export function claimsFromEvent(event: LambdaEvent): JwtClaims | null {
+function headerValue(event: LambdaEvent, name: string): string | undefined {
+  if (!("headers" in event) || !event.headers || typeof event.headers !== "object") {
+    return undefined;
+  }
+  const wanted = name.toLowerCase();
+  for (const [key, value] of Object.entries(event.headers as Record<string, unknown>)) {
+    if (key.toLowerCase() === wanted && typeof value === "string" && value.length > 0) {
+      return value;
+    }
+  }
+  return undefined;
+}
+
+function payloadFromBearer(authorization: string | undefined): Record<string, unknown> | null {
+  if (!authorization) {
+    return null;
+  }
+  const match = /^Bearer\s+(\S+)/i.exec(authorization.trim());
+  if (!match) {
+    return null;
+  }
+  const parts = match[1].split(".");
+  if (parts.length < 2) {
+    return null;
+  }
+  try {
+    const json = Buffer.from(parts[1], "base64url").toString("utf8");
+    const payload = JSON.parse(json) as unknown;
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      return null;
+    }
+    return payload as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+function groupsFromVerifiedAuthorization(event: LambdaEvent, sub: string): string[] {
+  const payload = payloadFromBearer(headerValue(event, "authorization"));
+  if (!payload || asString(payload.sub) !== sub) {
+    return [];
+  }
+  return parseGroups(payload["cognito:groups"]);
+}
+
+function authorizerClaims(event: LambdaEvent): JwtClaims | null {
   const requestContext = "requestContext" in event ? event.requestContext : undefined;
   if (!requestContext || typeof requestContext !== "object") {
     return null;
@@ -81,6 +126,18 @@ export function claimsFromEvent(event: LambdaEvent): JwtClaims | null {
   }
 
   return null;
+}
+
+export function claimsFromEvent(event: LambdaEvent): JwtClaims | null {
+  const claims = authorizerClaims(event);
+  if (!claims) {
+    return null;
+  }
+  if (claims.groups.length > 0) {
+    return claims;
+  }
+  const groups = groupsFromVerifiedAuthorization(event, claims.sub);
+  return groups.length > 0 ? { ...claims, groups } : claims;
 }
 
 export function iamArnFromEvent(event: LambdaEvent): string | null {

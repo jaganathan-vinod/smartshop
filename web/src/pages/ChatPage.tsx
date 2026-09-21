@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Link, Navigate } from "react-router-dom";
 import {
   assistantAsksToAddToCart,
   assistantAsksToConfirm,
@@ -16,6 +16,8 @@ import {
   requestAssistantUpload,
 } from "../assistant";
 import { useAuth } from "../auth";
+import { useChat } from "../chat";
+import { chatRedirectPath } from "../chatPaths";
 import { assistantInvokeUrl, loadConfig } from "../config";
 
 type ChatMessage = {
@@ -66,7 +68,16 @@ function AssistantCopy({ text }: { text: string }) {
 }
 
 export function ChatPage() {
+  const { openChat, lastStorePath } = useChat();
+  useLayoutEffect(() => {
+    openChat();
+  }, [openChat]);
+  return <Navigate to={chatRedirectPath(lastStorePath)} replace />;
+}
+
+export function ChatPanel() {
   const { user } = useAuth();
+  const { paneVisible, closeChat } = useChat();
   const conversationId = useMemo(() => newConversationId(), []);
   const sessionId = useMemo(() => newRuntimeSessionId(), []);
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -114,7 +125,26 @@ export function ChatPage() {
     if (log) {
       log.scrollTop = log.scrollHeight;
     }
-  }, [messages, busy]);
+  }, [messages, busy, paneVisible]);
+
+  useEffect(() => {
+    if (!paneVisible) {
+      return;
+    }
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        closeChat();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [paneVisible, closeChat]);
+
+  useEffect(() => {
+    if (paneVisible) {
+      inputRef.current?.focus();
+    }
+  }, [paneVisible]);
 
   function resizeComposer() {
     const input = inputRef.current;
@@ -196,19 +226,34 @@ export function ChatPage() {
     }
   }
 
+  if (!user) {
+    return null;
+  }
+
   return (
+    <aside
+      id="shop-assistant-pane"
+      className={`chat-pane${paneVisible ? " is-open" : ""}`}
+      role={paneVisible ? "dialog" : undefined}
+      aria-modal={paneVisible ? true : undefined}
+      aria-labelledby="shop-assistant-title"
+      aria-hidden={!paneVisible}
+    >
     <section className="chat-app">
       <header className="chat-head">
         <span className="chat-face chat-face-assistant" aria-hidden="true">
           SS
         </span>
         <div>
-          <h1>Shop assistant</h1>
+          <h1 id="shop-assistant-title">Shop assistant</h1>
           <p>Same cart and prices as checkout</p>
         </div>
         <Link className="chat-head-link" to="/cart">
           Cart
         </Link>
+        <button type="button" className="chat-head-link chat-close" onClick={closeChat}>
+          Close
+        </button>
       </header>
       {runtimeReady === false ? (
         <p className="chat-banner muted">
@@ -342,5 +387,6 @@ export function ChatPage() {
         />
       </div>
     </section>
+    </aside>
   );
 }
