@@ -3,11 +3,11 @@ import {
   getOrderArgsSchema,
   getProductArgsSchema,
   getQuoteArgsSchema,
+  productIdSchema,
   removeCartItemArgsSchema,
   searchProductsArgsSchema,
   setDeliveryArgsSchema,
   stripForgedUserId,
-  upsertCartItemArgsSchema,
   type AssistantToolName,
 } from "@smartshop/shared";
 import { deleteCartItem, getCartLines, upsertCartItem } from "../cart/store.js";
@@ -58,12 +58,45 @@ function publicProduct(product: {
   };
 }
 
+export function resolveUpsertProductId(
+  requested: unknown,
+  offered: string[] | undefined,
+): string | undefined {
+  const offeredIds = offered ?? [];
+  const parsed =
+    typeof requested === "string" ? productIdSchema.safeParse(requested.trim()) : undefined;
+  const requestedId = parsed?.success ? parsed.data : undefined;
+  if (requestedId && offeredIds.includes(requestedId)) {
+    return requestedId;
+  }
+  if (offeredIds.length === 1) {
+    return offeredIds[0];
+  }
+  return requestedId;
+}
+
+async function rememberOfferedProducts(
+  userId: string,
+  conversationId: string,
+  productIds: string[],
+): Promise<void> {
+  const conversation = await ensureConversation(userId, conversationId);
+  conversation.lastOfferedProductIds = productIds;
+  conversation.updatedAt = new Date().toISOString();
+  await putConversation(conversation);
+}
+
 export async function dispatchAssistantTool(input: DispatchInput): Promise<unknown> {
   const args = stripForgedUserId(input.args);
   switch (input.tool) {
     case "search_products": {
       const parsed = searchProductsArgsSchema.parse(args);
       const products = await listCatalogProducts(parsed);
+      await rememberOfferedProducts(
+        input.userId,
+        input.conversationId,
+        products.map((product) => product.productId),
+      );
       return { products: products.map(publicProduct) };
     }
     case "get_product": {
@@ -72,14 +105,39 @@ export async function dispatchAssistantTool(input: DispatchInput): Promise<unkno
       if (!product || !product.active) {
         throw new AssistantToolError("NOT_FOUND", "Product not found");
       }
+      await rememberOfferedProducts(input.userId, input.conversationId, [product.productId]);
       return { product: publicProduct(product) };
     }
     case "get_cart": {
       return { items: await getCartLines(input.userId) };
     }
     case "upsert_cart_item": {
-      const parsed = upsertCartItemArgsSchema.parse(args);
-      await upsertCartItem(input.userId, parsed.productId, parsed.quantity);
+      const conversation = await ensureConversation(input.userId, input.conversationId);
+      const quantity =
+        typeof args.quantity === "number" && Number.isInteger(args.quantity) && args.quantity >= 1
+          ? args.quantity
+          : 1;
+      const offered = conversation.lastOfferedProductIds ?? [];
+      let productId = resolveUpsertProductId(args.productId, offered);
+      if (!productId) {
+        throw new AssistantToolError(
+          "PRODUCT_REQUIRED",
+          "Search or name a catalogue product before adding to the cart",
+        );
+      }
+      try {
+        await upsertCartItem(input.userId, productId, quantity);
+      } catch (error) {
+        const missing =
+          error instanceof Error && "code" in error && error.code === "NOT_FOUND";
+        if (missing && offered.length === 1 && offered[0] !== productId) {
+          await upsertCartItem(input.userId, offered[0], quantity);
+        } else if (missing) {
+          throw new AssistantToolError("NOT_FOUND", "Product not found");
+        } else {
+          throw error;
+        }
+      }
       return { items: await getCartLines(input.userId) };
     }
     case "remove_cart_item": {
