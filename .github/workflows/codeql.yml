@@ -81,13 +81,16 @@ jobs:
             echo '{"error":"npm audit produced no JSON"}' > logs/npm-audit.json
           fi
 
-      - name: Ask Cursor for recommendations and comment on the PR
+      - name: Ask Cursor for recommendations, apply fixes, push to security-fixes
         continue-on-error: true
         env:
           CURSOR_TO_GIT_API_KEY: ${{ secrets.CURSOR_TO_GIT_API_KEY }}
+          SECURITY_FIXES_TOKEN: ${{ secrets.SECURITY_FIXES_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           GITHUB_HEAD_REF: ${{ github.head_ref }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           NPM_AUDIT_PATH: logs/npm-audit.json
+          APPLY_SECURITY_FIXES: "true"
+          SECURITY_FIXES_REPO: jaganathan-vinod/smartshop-security-fixes
         run: npx tsx scripts/pr-audit-agent.ts
