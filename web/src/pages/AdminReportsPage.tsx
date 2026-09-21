@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   DEFAULT_DASHBOARD_SPEC,
+  resolveDashboardWindowDays,
   type DashboardSpec,
   type MetricsSummary,
   type ReportJob,
@@ -16,7 +17,8 @@ import {
   getReportJob,
   refineReportJob,
 } from "../api";
-import { DashboardPanel } from "../admin/reports/DashboardPanel";
+import { GeneratedBoard, isCustomBoard } from "../admin/reports/generated/Board";
+import { ReportBoard } from "../admin/reports/ReportBoard";
 
 type ProductRow = { productId: string; name: string; units: number; gmvCents: number };
 type StockRow = { productId: string; name: string; stockQty: number };
@@ -34,11 +36,20 @@ export function AdminReportsPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  const spec: DashboardSpec = job?.previewSpec ?? published?.previewSpec ?? DEFAULT_DASHBOARD_SPEC;
+  const windowDays = resolveDashboardWindowDays(spec);
+  const badge =
+    job?.status === "preview_ready"
+      ? "Preview — not live until Approve"
+      : published
+        ? "Live published layout"
+        : "Default layout (nothing approved yet)";
+
   useEffect(() => {
     let cancelled = false;
     Promise.all([
-      getAdminMetricsSummary(7),
-      getAdminMetricsProducts(7),
+      getAdminMetricsSummary(windowDays),
+      getAdminMetricsProducts(windowDays),
       getAdminMetricsStock(),
     ])
       .then(([nextSummary, nextProducts, nextStock]) => {
@@ -53,6 +64,13 @@ export function AdminReportsPage() {
           setError(caught instanceof Error ? caught.message : "Could not load metrics");
         }
       });
+    return () => {
+      cancelled = true;
+    };
+  }, [windowDays]);
+
+  useEffect(() => {
+    let cancelled = false;
     getPublishedReport()
       .then((live) => {
         if (!cancelled) {
@@ -85,14 +103,6 @@ export function AdminReportsPage() {
     }, 3000);
     return () => window.clearInterval(timer);
   }, [job?.status, job?.jobId]);
-
-  const spec: DashboardSpec = job?.previewSpec ?? published?.previewSpec ?? DEFAULT_DASHBOARD_SPEC;
-  const badge =
-    job?.status === "preview_ready"
-      ? "Preview — not live until Approve"
-      : published
-        ? "Live published layout"
-        : "Default layout (nothing approved yet)";
 
   async function generate() {
     setBusy(true);
@@ -139,6 +149,8 @@ export function AdminReportsPage() {
     }
   }
 
+  const Board = isCustomBoard ? GeneratedBoard : ReportBoard;
+
   return (
     <section className="report-page">
       <h1>Executive reports</h1>
@@ -148,13 +160,7 @@ export function AdminReportsPage() {
       </p>
       {error ? <p className="flash error">{error}</p> : null}
       {summary ? (
-        <DashboardPanel
-          spec={spec}
-          summary={summary}
-          products={products}
-          stock={stock}
-          badge={badge}
-        />
+        <Board spec={spec} summary={summary} products={products} stock={stock} badge={badge} />
       ) : error ? null : (
         <p className="muted">Loading metrics…</p>
       )}

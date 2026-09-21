@@ -37,12 +37,24 @@ export const reportChartIdSchema = z.enum([
 
 export type ReportChartId = z.infer<typeof reportChartIdSchema>;
 
+export const reportLayoutSchema = z.enum(["executive", "pulse", "command"]);
+export type ReportLayout = z.infer<typeof reportLayoutSchema>;
+
+export const reportThemeSchema = z.enum(["store", "navy"]);
+export type ReportTheme = z.infer<typeof reportThemeSchema>;
+
+export const reportWindowDaysSchema = z.union([z.literal(7), z.literal(30)]);
+export type ReportWindowDays = z.infer<typeof reportWindowDaysSchema>;
+
 export const dashboardSpecSchema = z.object({
   title: z.string().min(1).max(120),
   kpis: z.array(reportKpiIdSchema).min(1).max(8),
   charts: z.array(reportChartIdSchema).max(8),
   unavailable: z.array(z.string().min(1)).default([]),
   gmvTargetCents: centsSchema.optional(),
+  layout: reportLayoutSchema.default("executive"),
+  theme: reportThemeSchema.default("store"),
+  windowDays: reportWindowDaysSchema.default(7),
 });
 
 export type DashboardSpec = z.infer<typeof dashboardSpecSchema>;
@@ -53,6 +65,9 @@ export const DEFAULT_DASHBOARD_SPEC: DashboardSpec = {
   charts: ["gmvByDay", "topProducts", "deliveryMix", "premium"],
   unavailable: ["viewToOrder"],
   gmvTargetCents: 1_200_000,
+  layout: "executive",
+  theme: "store",
+  windowDays: 7,
 };
 
 export const createReportJobRequestSchema = z.object({
@@ -147,4 +162,22 @@ export function parseDashboardSpecFromText(text: string): DashboardSpec | null {
     }
   }
   return null;
+}
+
+export function resolveDashboardWindowDays(spec: DashboardSpec): ReportWindowDays {
+  return spec.windowDays === 30 ? 30 : 7;
+}
+
+export function resolveDashboardTargetCents(
+  spec: DashboardSpec,
+  summary: Pick<MetricsSummary, "gmvTargetCents">,
+): number {
+  return spec.gmvTargetCents ?? summary.gmvTargetCents ?? 0;
+}
+
+export function gmvPacePercent(gmvCents: number, targetCents: number): number | null {
+  if (targetCents <= 0) {
+    return null;
+  }
+  return Math.round((gmvCents / targetCents) * 100);
 }

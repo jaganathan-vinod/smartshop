@@ -38,14 +38,20 @@ function startingRef(): string {
 }
 
 function dashboardBrief(userPrompt: string): string {
-  return `You are generating a SmartShop admin executive dashboard spec. This is NOT the customer shopping assistant.
+  return `You are generating a SmartShop admin executive dashboard. This is NOT the customer shopping assistant.
 
-Write ONLY under web/src/admin/reports/generated/. Do not edit services/api cart/orders, services/assistant, infra, or JWT authorizers.
+Write ONLY under web/src/admin/reports/generated/. Do not edit services/api cart/orders, services/assistant, infra, web/src/styles.css, or JWT authorizers.
+
+1. Overwrite web/src/admin/reports/generated/Board.tsx with a self-contained board (inline styles or a CSS module in generated/ only). It must export:
+   export const isCustomBoard = true;
+   export function GeneratedBoard(props: { spec; summary; products; stock; badge }): JSX.Element
+   Bind widgets to GET /v1/admin/metrics/* (integer cents, USD). Do not invent GMV. Empty windows render $0.00 or "No orders in this window".
+2. Overwrite web/src/admin/reports/generated/dashboard.spec.json.
 
 End your reply with a fenced json block matching this shape:
-{"title":"string","kpis":["gmv"|"orderCount"|"aov"|"targetPace"|"stockouts"|"premiumShare"],"charts":["gmvByDay"|"topProducts"|"deliveryMix"|"premium"],"unavailable":["viewToOrder"],"gmvTargetCents":1200000}
+{"title":"string","kpis":["gmv"|"orderCount"|"aov"|"targetPace"|"stockouts"|"premiumShare"],"charts":["gmvByDay"|"topProducts"|"deliveryMix"|"premium"],"unavailable":["viewToOrder"],"gmvTargetCents":1200000,"layout":"executive"|"pulse"|"command","theme":"store"|"navy","windowDays":7|30}
 
-Widgets must bind to GET /v1/admin/metrics/* (integer cents, USD). Do not invent GMV. If the admin asks for page-view conversion, list it under unavailable.
+Use layout "pulse" or "command" when the admin wants a board (pace ring, daily GMV bars, product lanes, stockout chips). Use theme "navy" for a dark command-center look. windowDays 30 for monthly views. If the admin asks for page-view conversion, list it under unavailable.
 
 Admin request:
 ${userPrompt}`;

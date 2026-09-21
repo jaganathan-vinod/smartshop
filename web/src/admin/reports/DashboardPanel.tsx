@@ -1,56 +1,11 @@
-import type { DashboardSpec, MetricsSummary } from "@smartshop/shared";
 import { formatCents } from "../../money";
+import type { GeneratedBoardProps } from "./boardTypes";
+import { EMPTY_ORDERS_COPY, isEmptyOrdersWindow } from "./emptyWindow";
 import { kpiLabel } from "./labels";
+import { kpiValue } from "./kpiValues";
 
-type ProductRow = { productId: string; name: string; units: number; gmvCents: number };
-type StockRow = { productId: string; name: string; stockQty: number };
-
-function kpiValue(
-  id: DashboardSpec["kpis"][number],
-  summary: MetricsSummary,
-  stockCount: number,
-): string {
-  switch (id) {
-    case "gmv":
-      return formatCents(summary.gmvCents);
-    case "orderCount":
-      return String(summary.orderCount);
-    case "aov":
-      return formatCents(summary.aovCents);
-    case "targetPace": {
-      const target = summary.gmvTargetCents ?? 0;
-      if (target <= 0) {
-        return "—";
-      }
-      return `${Math.round((summary.gmvCents / target) * 100)}%`;
-    }
-    case "stockouts":
-      return String(stockCount);
-    case "premiumShare":
-      if (summary.orderCount === 0) {
-        return "0%";
-      }
-      return `${Math.round((summary.premiumOrderCount / summary.orderCount) * 100)}%`;
-    default: {
-      const _never: never = id;
-      return _never;
-    }
-  }
-}
-
-export function DashboardPanel({
-  spec,
-  summary,
-  products,
-  stock,
-  badge,
-}: {
-  spec: DashboardSpec;
-  summary: MetricsSummary;
-  products: ProductRow[];
-  stock: StockRow[];
-  badge: string;
-}) {
+export function DashboardPanel({ spec, summary, products, stock, badge }: GeneratedBoardProps) {
+  const stockCount = stock.filter((row) => row.stockQty === 0).length;
   return (
     <section className="report-board">
       <header className="report-board-head">
@@ -60,7 +15,7 @@ export function DashboardPanel({
       <div className="report-kpis">
         {spec.kpis.map((id) => (
           <article key={id} className="report-kpi">
-            <strong>{kpiValue(id, summary, stock.length)}</strong>
+            <strong>{kpiValue(id, spec, summary, stockCount)}</strong>
             <span>{kpiLabel(id)}</span>
           </article>
         ))}
@@ -79,13 +34,19 @@ export function DashboardPanel({
             </tr>
           </thead>
           <tbody>
-            {summary.gmvByDay.map((row) => (
-              <tr key={row.date}>
-                <td>{row.date}</td>
-                <td>{formatCents(row.gmvCents)}</td>
-                <td>{row.orderCount}</td>
+            {isEmptyOrdersWindow(summary.gmvCents, summary.gmvByDay.length) ? (
+              <tr>
+                <td colSpan={3}>{EMPTY_ORDERS_COPY}</td>
               </tr>
-            ))}
+            ) : (
+              summary.gmvByDay.map((row) => (
+                <tr key={row.date}>
+                  <td>{row.date}</td>
+                  <td>{row.gmvCents === 0 ? "$0.00" : formatCents(row.gmvCents)}</td>
+                  <td>{row.orderCount}</td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       ) : null}
@@ -102,7 +63,7 @@ export function DashboardPanel({
           <tbody>
             {products.length === 0 ? (
               <tr>
-                <td colSpan={3}>No orders in this window</td>
+                <td colSpan={3}>{EMPTY_ORDERS_COPY}</td>
               </tr>
             ) : (
               products.map((row) => (
