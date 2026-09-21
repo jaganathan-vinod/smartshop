@@ -52,6 +52,8 @@ describe("explicit confirm phrase", () => {
     assert.equal(isExplicitConfirm("yes confirm order"), true);
     assert.equal(isExplicitConfirm("yes, confirm"), true);
     assert.equal(isExplicitConfirm("place the order"), true);
+    assert.equal(isExplicitConfirm("yes order"), true);
+    assert.equal(isExplicitConfirm("yes, order"), true);
   });
 
   it("rejects implied consent", () => {

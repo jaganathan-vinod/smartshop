@@ -77,7 +77,7 @@ export const getOrderArgsSchema = z.object({
 });
 
 const EXPLICIT_YES =
-  /^(yes|yep|yeah|ok yes|okay yes|confirm|confirmed|confirm order|place it|place the order|yes[,.]?\s*place it|yes[,.]?\s*place the order|yes[,.]?\s*confirm(?:\s+(?:the\s+)?order)?)$/i;
+  /^(yes|yep|yeah|ok yes|okay yes|confirm|confirmed|confirm order|place it|place the order|place order|yes[,.]?\s*place it|yes[,.]?\s*place the order|yes[,.]?\s*place order|yes[,.]?\s*order|yes[,.]?\s*confirm(?:\s+(?:the\s+)?order)?)$/i;
 
 export function isExplicitConfirm(message: string): boolean {
   const normalized = message.trim().replace(/[.!?]+$/g, "").replace(/\s+/g, " ");
@@ -155,7 +155,7 @@ export function assistantInlineParts(text: string): { text: string; bold?: boole
 }
 
 export function assistantAsksToConfirm(text: string): boolean {
-  return /would you like to (?:place|confirm)|place this order|confirm this order/i.test(
+  return /would you like to (?:place|confirm|proceed)|place this order|confirm this order|proceed with (?:the |this )?order/i.test(
     visibleAssistantText(text),
   );
 }
