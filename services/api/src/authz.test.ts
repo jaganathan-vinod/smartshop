@@ -15,6 +15,7 @@ describe("parseGroups", () => {
     assert.deepEqual(parseGroups("admin"), ["admin"]);
     assert.deepEqual(parseGroups(["admin", "other"]), ["admin", "other"]);
     assert.deepEqual(parseGroups('["admin"]'), ["admin"]);
+    assert.deepEqual(parseGroups("[admin]"), ["admin"]);
   });
 });
 

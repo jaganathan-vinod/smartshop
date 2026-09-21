@@ -18,7 +18,7 @@ import { denyUnlessAdmin } from "./guard.js";
 
 export function registerAdminRoutes(app: Hono): void {
   app.post("/v1/admin/products", async (c) => {
-    const denied = denyUnlessAdmin(c);
+    const denied = await denyUnlessAdmin(c);
     if (denied) {
       return denied;
     }
@@ -38,7 +38,7 @@ export function registerAdminRoutes(app: Hono): void {
   });
 
   app.put("/v1/admin/products/:productId", async (c) => {
-    const denied = denyUnlessAdmin(c);
+    const denied = await denyUnlessAdmin(c);
     if (denied) {
       return denied;
     }
@@ -62,7 +62,7 @@ export function registerAdminRoutes(app: Hono): void {
   });
 
   app.patch("/v1/admin/products/:productId", async (c) => {
-    const denied = denyUnlessAdmin(c);
+    const denied = await denyUnlessAdmin(c);
     if (denied) {
       return denied;
     }
@@ -86,7 +86,7 @@ export function registerAdminRoutes(app: Hono): void {
   });
 
   app.patch("/v1/admin/users/:userId/premium", async (c) => {
-    const denied = denyUnlessAdmin(c);
+    const denied = await denyUnlessAdmin(c);
     if (denied) {
       return denied;
     }

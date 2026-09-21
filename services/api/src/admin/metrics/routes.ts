@@ -16,7 +16,7 @@ function windowDays(raw: string | undefined): number {
 
 export function registerAdminMetricsRoutes(app: Hono): void {
   app.get("/v1/admin/metrics/summary", async (c) => {
-    const denied = denyUnlessAdmin(c);
+    const denied = await denyUnlessAdmin(c);
     if (denied) {
       return denied;
     }
@@ -25,7 +25,7 @@ export function registerAdminMetricsRoutes(app: Hono): void {
   });
 
   app.get("/v1/admin/metrics/products", async (c) => {
-    const denied = denyUnlessAdmin(c);
+    const denied = await denyUnlessAdmin(c);
     if (denied) {
       return denied;
     }
@@ -34,7 +34,7 @@ export function registerAdminMetricsRoutes(app: Hono): void {
   });
 
   app.get("/v1/admin/metrics/stock", async (c) => {
-    const denied = denyUnlessAdmin(c);
+    const denied = await denyUnlessAdmin(c);
     if (denied) {
       return denied;
     }
@@ -43,7 +43,7 @@ export function registerAdminMetricsRoutes(app: Hono): void {
   });
 
   app.get("/v1/admin/metrics/delivery", async (c) => {
-    const denied = denyUnlessAdmin(c);
+    const denied = await denyUnlessAdmin(c);
     if (denied) {
       return denied;
     }
@@ -52,7 +52,7 @@ export function registerAdminMetricsRoutes(app: Hono): void {
   });
 
   app.get("/v1/admin/metrics/premium", async (c) => {
-    const denied = denyUnlessAdmin(c);
+    const denied = await denyUnlessAdmin(c);
     if (denied) {
       return denied;
     }
@@ -65,8 +65,8 @@ export function registerAdminMetricsRoutes(app: Hono): void {
     });
   });
 
-  app.get("/v1/admin/metrics/:unknown", (c) => {
-    const denied = denyUnlessAdmin(c);
+  app.get("/v1/admin/metrics/:unknown", async (c) => {
+    const denied = await denyUnlessAdmin(c);
     if (denied) {
       return denied;
     }

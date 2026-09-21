@@ -5,6 +5,7 @@ export type JwtClaims = {
   sub: string;
   email?: string;
   name?: string;
+  username?: string;
   groups: string[];
 };
 
@@ -39,7 +40,11 @@ export function parseGroups(value: unknown): string[] {
       const parsed = JSON.parse(value) as unknown;
       return parseGroups(parsed);
     } catch {
-      return [value];
+      return value
+        .slice(1, -1)
+        .split(",")
+        .map((part) => part.trim().replace(/^["']|["']$/g, ""))
+        .filter(Boolean);
     }
   }
   return value.split(",").map((part) => part.trim()).filter(Boolean);
@@ -54,6 +59,7 @@ function fromRecord(claims: Record<string, unknown>): JwtClaims | null {
     sub,
     email: asString(claims.email) ?? emailLike(asString(claims["cognito:username"])),
     name: asString(claims.name) ?? asString(claims.given_name),
+    username: asString(claims["cognito:username"]) ?? asString(claims.username),
     groups: parseGroups(claims["cognito:groups"]),
   };
 }

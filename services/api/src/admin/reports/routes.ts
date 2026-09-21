@@ -33,7 +33,7 @@ function cursorError(c: Parameters<typeof jsonError>[0], error: unknown) {
 
 export function registerAdminReportRoutes(app: Hono): void {
   app.get("/v1/admin/reports/published", async (c) => {
-    const denied = denyUnlessAdmin(c);
+    const denied = await denyUnlessAdmin(c);
     if (denied) {
       return denied;
     }
@@ -45,7 +45,7 @@ export function registerAdminReportRoutes(app: Hono): void {
   });
 
   app.post("/v1/admin/reports/jobs", async (c) => {
-    const denied = denyUnlessAdmin(c);
+    const denied = await denyUnlessAdmin(c);
     if (denied) {
       return denied;
     }
@@ -84,7 +84,7 @@ export function registerAdminReportRoutes(app: Hono): void {
   });
 
   app.get("/v1/admin/reports/jobs/:jobId", async (c) => {
-    const denied = denyUnlessAdmin(c);
+    const denied = await denyUnlessAdmin(c);
     if (denied) {
       return denied;
     }
@@ -105,7 +105,7 @@ export function registerAdminReportRoutes(app: Hono): void {
   });
 
   app.post("/v1/admin/reports/jobs/:jobId/messages", async (c) => {
-    const denied = denyUnlessAdmin(c);
+    const denied = await denyUnlessAdmin(c);
     if (denied) {
       return denied;
     }
@@ -137,7 +137,7 @@ export function registerAdminReportRoutes(app: Hono): void {
   });
 
   app.post("/v1/admin/reports/jobs/:jobId/approve", async (c) => {
-    const denied = denyUnlessAdmin(c);
+    const denied = await denyUnlessAdmin(c);
     if (denied) {
       return denied;
     }

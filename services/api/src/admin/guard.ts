@@ -1,13 +1,15 @@
 import type { Context } from "hono";
 import { currentClaims } from "../auth.js";
 import { jsonError } from "../http.js";
+import { resolveAdminGroups } from "./groups.js";
 
-export function denyUnlessAdmin(c: Context) {
+export async function denyUnlessAdmin(c: Context) {
   const claims = currentClaims();
   if (!claims) {
     return jsonError(c, 401, "UNAUTHENTICATED", "Sign in required");
   }
-  if (!claims.groups.includes("admin")) {
+  const groups = await resolveAdminGroups(claims);
+  if (!groups.includes("admin")) {
     return jsonError(c, 403, "FORBIDDEN", "Admin role required");
   }
   return null;

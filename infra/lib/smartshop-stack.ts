@@ -155,6 +155,7 @@ export class SmartShopStack extends Stack {
         ORDER_NUMBERS_TABLE: orderNumbers.tableName,
         CONVERSATIONS_TABLE: conversations.tableName,
         REPORT_JOBS_TABLE: reportJobs.tableName,
+        USER_POOL_ID: userPool.userPoolId,
         CURSOR_DASHBOARD_API_KEY: process.env.CURSOR_DASHBOARD_API_KEY ?? "",
         CURSOR_CLOUD_REPO: process.env.CURSOR_CLOUD_REPO ?? "https://github.com/jaganathan-vinod/smartshop",
         CURSOR_CLOUD_REF: process.env.CURSOR_CLOUD_REF ?? "dashboard",
@@ -168,6 +169,12 @@ export class SmartShopStack extends Stack {
     orderNumbers.grantReadWriteData(apiFn);
     conversations.grantReadWriteData(apiFn);
     reportJobs.grantReadWriteData(apiFn);
+    apiFn.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["cognito-idp:AdminListGroupsForUser"],
+        resources: [userPool.userPoolArn],
+      }),
+    );
 
     const jwtAuthorizer = new HttpUserPoolAuthorizer(
       "CognitoJwt",
