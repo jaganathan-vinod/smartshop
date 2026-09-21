@@ -2,21 +2,23 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { execSync } from "node:child_process";
 import { DockerImage, Duration, RemovalPolicy, CfnOutput, Stack, StackProps } from "aws-cdk-lib";
+import * as agentcore from "aws-cdk-lib/aws-bedrockagentcore";
 import * as cognito from "aws-cdk-lib/aws-cognito";
 import * as cloudwatch from "aws-cdk-lib/aws-cloudwatch";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
+import * as iam from "aws-cdk-lib/aws-iam";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as logs from "aws-cdk-lib/aws-logs";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 import * as apigwv2 from "aws-cdk-lib/aws-apigatewayv2";
 import { HttpLambdaIntegration } from "aws-cdk-lib/aws-apigatewayv2-integrations";
-import { HttpUserPoolAuthorizer } from "aws-cdk-lib/aws-apigatewayv2-authorizers";
+import { HttpIamAuthorizer, HttpUserPoolAuthorizer } from "aws-cdk-lib/aws-apigatewayv2-authorizers";
 import * as s3 from "aws-cdk-lib/aws-s3";
 import * as s3deploy from "aws-cdk-lib/aws-s3-deployment";
 import * as cloudfront from "aws-cdk-lib/aws-cloudfront";
 import * as origins from "aws-cdk-lib/aws-cloudfront-origins";
 import { Construct } from "constructs";
-import { JWT_PROTECTED_METHODS } from "./jwt-proxy-methods";
+import { INTERNAL_ASSISTANT_TOOLS_PATH, JWT_PROTECTED_METHODS } from "./jwt-proxy-methods";
 
 export class SmartShopStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
@@ -198,6 +200,26 @@ export class SmartShopStack extends Stack {
 
     const spaOrigin = `https://${distribution.distributionDomainName}`;
 
+    const assistantUploads = new s3.Bucket(this, "AssistantUploads", {
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      enforceSSL: true,
+      removalPolicy: RemovalPolicy.DESTROY,
+      autoDeleteObjects: true,
+      lifecycleRules: [{ expiration: Duration.days(1), prefix: "" }],
+      cors: [
+        {
+          allowedMethods: [s3.HttpMethods.PUT, s3.HttpMethods.GET, s3.HttpMethods.HEAD],
+          allowedOrigins: [spaOrigin],
+          allowedHeaders: ["*"],
+          maxAge: 3000,
+        },
+      ],
+    });
+    apiFn.addEnvironment("ASSISTANT_UPLOADS_BUCKET", assistantUploads.bucketName);
+    assistantUploads.grantPut(apiFn);
+    assistantUploads.grantRead(apiFn);
+
     const httpApi = new apigwv2.HttpApi(this, "HttpApi", {
       apiName: "smartshop-api",
       corsPreflight: {
@@ -237,11 +259,76 @@ export class SmartShopStack extends Stack {
     });
 
     httpApi.addRoutes({
+      path: INTERNAL_ASSISTANT_TOOLS_PATH,
+      methods: [apigwv2.HttpMethod.POST],
+      integration,
+      authorizer: new HttpIamAuthorizer(),
+    });
+
+    httpApi.addRoutes({
       path: "/{proxy+}",
       methods: JWT_PROTECTED_METHODS,
       integration,
       authorizer: jwtAuthorizer,
     });
+
+    const assistantRuntime = new agentcore.Runtime(this, "AssistantRuntime", {
+      runtimeName: "smartshop_assistant",
+      description: "SmartShop text and image shopping assistant",
+      agentRuntimeArtifact: agentcore.AgentRuntimeArtifact.fromCodeAsset({
+        path: path.join(repoRoot, "services/assistant"),
+        runtime: agentcore.AgentCoreRuntime.NODE_22,
+        entrypoint: ["server.js"],
+        bundling: {
+          image: DockerImage.fromRegistry("node:22"),
+          local: {
+            tryBundle(outputDir: string): boolean {
+              execSync(
+                `node services/assistant/bundle.mjs ${JSON.stringify(path.join(outputDir, "server.js"))}`,
+                { cwd: repoRoot, stdio: "inherit" },
+              );
+              return true;
+            },
+          },
+          command: [
+            "bash",
+            "-c",
+            "node bundle.mjs /asset-output/server.js",
+          ],
+        },
+      }),
+      environmentVariables: {
+        SMARTSHOP_API_URL: httpApi.apiEndpoint,
+        SMARTSHOP_REGION: this.region,
+        // ap-southeast-1 has no on-demand Nova Lite; Converse needs the APAC inference profile.
+        BEDROCK_MODEL_ID: "apac.amazon.nova-lite-v1:0",
+        ASSISTANT_UPLOADS_BUCKET: assistantUploads.bucketName,
+        SPA_ORIGIN: spaOrigin,
+      },
+      authorizerConfiguration: agentcore.RuntimeAuthorizerConfiguration.usingCognito(
+        userPool,
+        [userPoolClient],
+      ),
+    });
+    // AgentCore validates JWT at the edge and drops Authorization unless allowlisted.
+    // The agent needs that header to copy Cognito `sub` into X-SmartShop-User-Id.
+    const cfnRuntime = assistantRuntime.node.defaultChild as agentcore.CfnRuntime;
+    cfnRuntime.requestHeaderConfiguration = {
+      requestHeaderAllowlist: ["Authorization"],
+    };
+    assistantRuntime.role.addToPrincipalPolicy(
+      new iam.PolicyStatement({
+        actions: ["execute-api:Invoke"],
+        resources: [httpApi.arnForExecuteApi("POST", INTERNAL_ASSISTANT_TOOLS_PATH)],
+      }),
+    );
+    assistantRuntime.role.addToPrincipalPolicy(
+      new iam.PolicyStatement({
+        actions: ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"],
+        resources: ["*"],
+      }),
+    );
+    assistantUploads.grantRead(assistantRuntime.role);
 
     new cloudwatch.Alarm(this, "ApiFnErrors", {
       alarmName: "smartshop-api-lambda-errors",
@@ -303,6 +390,7 @@ export class SmartShopStack extends Stack {
           userPoolId: userPool.userPoolId,
           userPoolClientId: userPoolClient.userPoolClientId,
           region: this.region,
+          assistantRuntimeArn: assistantRuntime.agentRuntimeArn,
         }),
       ],
       destinationBucket: webBucket,
@@ -344,6 +432,10 @@ export class SmartShopStack extends Stack {
     });
     new CfnOutput(this, "ConversationsTableName", {
       value: conversations.tableName,
+    });
+    new CfnOutput(this, "AssistantRuntimeArn", {
+      value: assistantRuntime.agentRuntimeArn,
+      description: "AgentCore Runtime ARN for /chat",
     });
   }
 }
