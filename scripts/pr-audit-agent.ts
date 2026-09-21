@@ -39,51 +39,106 @@ ${body.trim()}
 `;
 }
 
+async function sleep(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function summarizeAlerts(alerts: unknown[]): string {
+  const slim = alerts.map((raw) => {
+    const alert = raw as {
+      number?: number;
+      state?: string;
+      rule?: { id?: string; description?: string; severity?: string; name?: string };
+      most_recent_instance?: {
+        ref?: string;
+        location?: { path?: string; start_line?: number; end_line?: number };
+        message?: { text?: string };
+      };
+      html_url?: string;
+    };
+    return {
+      number: alert.number,
+      state: alert.state,
+      ruleId: alert.rule?.id,
+      ruleName: alert.rule?.name,
+      severity: alert.rule?.severity,
+      description: alert.rule?.description,
+      path: alert.most_recent_instance?.location?.path,
+      startLine: alert.most_recent_instance?.location?.start_line,
+      message: alert.most_recent_instance?.message?.text,
+      ref: alert.most_recent_instance?.ref,
+      url: alert.html_url,
+    };
+  });
+  return JSON.stringify(slim, null, 2);
+}
+
+async function listAlerts(repo: string, query: string): Promise<unknown[] | null> {
+  const listed = runGh(["api", `repos/${repo}/code-scanning/alerts?${query}`]);
+  if (!listed.ok) {
+    console.warn("code-scanning alerts fetch failed:", query, listed.stderr.trim());
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(listed.stdout) as unknown;
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    console.warn("code-scanning alerts response was not JSON for", query);
+    return null;
+  }
+}
+
 async function fetchCodeqlAlerts(): Promise<string> {
   const repo = process.env.GITHUB_REPOSITORY?.trim();
-  const headRef = process.env.GITHUB_HEAD_REF?.trim();
   if (!repo) {
     return JSON.stringify({ skipped: true, reason: "GITHUB_REPOSITORY is not set" });
   }
 
-  const refsToTry = headRef
-    ? [`refs/heads/${headRef}`, headRef]
-    : [process.env.GITHUB_REF?.trim()].filter(Boolean) as string[];
+  const prNumber = await resolvePrNumber();
+  const headRef = process.env.GITHUB_HEAD_REF?.trim();
+  const queries: string[] = [];
 
-  for (const ref of refsToTry) {
-    const listed = runGh([
-      "api",
-      `repos/${repo}/code-scanning/alerts?state=open&ref=${encodeURIComponent(ref)}&per_page=100`,
-    ]);
-    if (!listed.ok) {
-      console.warn("code-scanning alerts fetch failed for", ref, listed.stderr.trim());
-      continue;
+  // PR alerts are stored against refs/pull/<n>/merge (see Security → Code scanning),
+  // not refs/heads/<branch>. Branch/default-branch queries often return [].
+  if (prNumber) {
+    queries.push(`pr=${encodeURIComponent(prNumber)}&per_page=100`);
+    queries.push(
+      `ref=${encodeURIComponent(`refs/pull/${prNumber}/merge`)}&per_page=100`,
+    );
+    queries.push(
+      `ref=${encodeURIComponent(`refs/pull/${prNumber}/head`)}&per_page=100`,
+    );
+  }
+  if (headRef) {
+    queries.push(`ref=${encodeURIComponent(`refs/heads/${headRef}`)}&per_page=100`);
+    queries.push(`ref=${encodeURIComponent(headRef)}&per_page=100`);
+  }
+  queries.push("state=open&per_page=100");
+
+  // Alerts can lag briefly after codeql-action/analyze uploads SARIF.
+  const attempts = 5;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    for (const query of queries) {
+      const alerts = await listAlerts(repo, query);
+      if (alerts && alerts.length > 0) {
+        console.log(
+          `Fetched ${alerts.length} CodeQL alert(s) via ${query} (attempt ${attempt})`,
+        );
+        return summarizeAlerts(alerts);
+      }
     }
-    try {
-      const parsed = JSON.parse(listed.stdout) as unknown;
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return JSON.stringify(parsed, null, 2);
-      }
-      if (Array.isArray(parsed)) {
-        console.log("No open CodeQL alerts for ref", ref);
-      }
-    } catch {
-      return listed.stdout;
+    if (attempt < attempts) {
+      const waitMs = attempt * 5_000;
+      console.log(`No CodeQL alerts yet; retrying in ${waitMs}ms (attempt ${attempt}/${attempts})`);
+      await sleep(waitMs);
     }
   }
 
-  // Fall back to all open alerts for the repo if ref-scoped query is empty/unavailable.
-  const allOpen = runGh([
-    "api",
-    `repos/${repo}/code-scanning/alerts?state=open&per_page=100`,
-  ]);
-  if (!allOpen.ok) {
-    return JSON.stringify({
-      error: "Failed to fetch CodeQL alerts",
-      detail: allOpen.stderr.trim() || allOpen.stdout.trim(),
-    });
-  }
-  return allOpen.stdout;
+  return JSON.stringify({
+    alerts: [],
+    note: "No CodeQL alerts returned from the API after retries. Check Security → Code scanning for PR merge-ref findings.",
+    tried: queries,
+  });
 }
 
 async function resolvePrNumber(): Promise<string | undefined> {
