@@ -1,22 +1,30 @@
 /**
- * Sample file intentionally using string-interpolated SQL.
- * Used to exercise CodeQL / Bugbot warnings — not for production use.
+ * Sample intentionally vulnerable to SQL injection for CodeQL / Bugbot demos.
+ * Not for production use.
+ *
+ * CodeQL's js/sql-injection only alerts when a *remote* source (e.g. req.query)
+ * flows into a known SQL sink (e.g. pg.Client#query). A plain function parameter
+ * is not treated as a remote source, so scanners skip it.
  */
 
-import type { Client } from "pg";
+import express from "express";
+import pg from "pg";
 
-declare function getDbClient(): Client;
+const app = express();
+const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 
-export async function findOrder(orderId: string) {
-  const client = getDbClient();
-  const sql = `SELECT * FROM orders WHERE id = '${orderId}'`;
+app.get("/orders/:orderId", async (req, res) => {
+  // BAD: user-controlled value concatenated into SQL
+  const sql = `SELECT * FROM orders WHERE id = '${req.params.orderId}'`;
+  const result = await pool.query(sql);
+  res.json(result.rows);
+});
 
-  return client.query(sql);
-}
+app.get("/orders", async (req, res) => {
+  // BAD: query-string input concatenated into SQL
+  const sql = `SELECT * FROM orders WHERE customer_name = '${req.query.customerName}' ORDER BY created_at DESC`;
+  const result = await pool.query(sql);
+  res.json(result.rows);
+});
 
-export async function findOrdersByCustomer(customerName: string) {
-  const client = getDbClient();
-  const sql = `SELECT * FROM orders WHERE customer_name = '${customerName}' ORDER BY created_at DESC`;
-
-  return client.query(sql);
-}
+export { app };
