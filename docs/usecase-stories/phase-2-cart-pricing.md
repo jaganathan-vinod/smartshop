@@ -58,7 +58,7 @@
 **Main flow**
 
 1. Customer adds a line on the web.
-2. Same JWT loads `GET /v1/cart` from another client (or chat `get_cart` tool in Phase 5).
+2. Same JWT loads `GET /v1/cart` from another client (or assistant `get_cart` tool in Phase 5).
 3. Lines match.
 
 **Acceptance criteria**

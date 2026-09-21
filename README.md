@@ -1,6 +1,6 @@
 # SmartShop
 
-Startup e-commerce MVP: customers sign up and sign in with Amazon Cognito (email and password), browse a catalogue, manage a cart, preview delivery and premium pricing, confirm an order, and repeat that journey through an in-app AI assistant.
+Startup e-commerce MVP: customers sign up and sign in with Amazon Cognito (email and password), browse a catalogue, manage a cart, preview delivery and premium pricing, confirm an order, and repeat that journey through an in-app AI assistant (text, voice, and image).
 
 **Status:** Phases 0–4 and 6 are in the repo (Phase 5 assistant is later). AWS deploy is still a separate step.
 
@@ -28,7 +28,7 @@ Startup e-commerce MVP: customers sign up and sign in with Amazon Cognito (email
 - Data: DynamoDB
 - Auth: Amazon Cognito User Pool (email + password, self-service sign-up)
 - Validation: Zod
-- Assistant: Amazon Bedrock (tool calling into the same domain modules)
+- Assistant: Amazon Bedrock AgentCore Runtime (text, voice, image); tools call SmartShop over IAM
 - Checkout: simulated (no real payments)
 
 ## Phase 0
@@ -107,6 +107,10 @@ npm run dev
 ```
 
 Open http://localhost:5173 — catalogue is public; cart, checkout, orders, and chat redirect to `/login`. Sign up is Cognito (`/signup` → `/confirm` → `/login`). Vite proxies `/v1` to the deployed API so local CORS is not required. `cdk deploy` builds the SPA and writes `/config.json` with the API URL and User Pool ids.
+
+## Phase 5
+
+AgentCore Runtime hosts text, voice (Nova Sonic WebSocket), and image shopping. Tools call `POST /v1/internal/assistant/tools` with IAM; `userId` is injected from the inbound Cognito JWT. Public cart/order APIs stay JWT for the SPA. **Existing catalogue, checkout, and login must not change** ([§2.4](docs/project-technical-requirements.md), [US-5.08](docs/usecase-stories/phase-5-assistant.md)). Plan: [docs/usecase-stories/phase-5-assistant.md](docs/usecase-stories/phase-5-assistant.md).
 
 ## Phase 6
 

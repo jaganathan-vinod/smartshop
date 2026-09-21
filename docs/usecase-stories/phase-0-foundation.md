@@ -35,7 +35,7 @@
 
 **Out of scope**
 
-- Product search, cart, orders, SPA routes, Bedrock.
+- Product search, cart, orders, SPA routes, AgentCore Runtime.
 
 ---
 

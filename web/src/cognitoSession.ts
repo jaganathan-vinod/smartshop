@@ -21,6 +21,21 @@ export async function getIdToken(forceRefresh = false): Promise<string | undefin
   return session.tokens?.idToken?.toString();
 }
 
+export async function getAccessToken(forceRefresh = false): Promise<string | undefined> {
+  await ensureAmplify();
+  const { fetchAuthSession } = await import("aws-amplify/auth");
+  const session = await fetchAuthSession({ forceRefresh });
+  return session.tokens?.accessToken?.toString();
+}
+
+export async function requireAssistantToken(): Promise<string> {
+  const access = await getAccessToken(false);
+  if (access) {
+    return access;
+  }
+  return requireIdToken();
+}
+
 export async function requireIdToken(): Promise<string> {
   const existing = await getIdToken(false);
   if (existing) {

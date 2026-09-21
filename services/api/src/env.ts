@@ -25,3 +25,11 @@ export function ordersTableName(): string {
 export function orderNumbersTableName(): string {
   return requireEnv("ORDER_NUMBERS_TABLE");
 }
+
+export function conversationsTableName(): string {
+  return requireEnv("CONVERSATIONS_TABLE");
+}
+
+export function assistantUploadsBucket(): string | undefined {
+  return process.env.ASSISTANT_UPLOADS_BUCKET;
+}
