@@ -74,7 +74,7 @@ Generate starts a **Cursor cloud agent** (not AgentCore). Put the key on the API
 ```bash
 export CURSOR_DASHBOARD_API_KEY="cursor_..."   # Cursor Dashboard → API Keys
 export CURSOR_CLOUD_REPO="https://github.com/jaganathan-vinod/smartshop"
-export CURSOR_CLOUD_REF="dashboard"
+export CURSOR_CLOUD_REF="main"
 npm run deploy
 ```
 

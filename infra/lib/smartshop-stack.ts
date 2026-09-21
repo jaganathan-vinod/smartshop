@@ -158,7 +158,7 @@ export class SmartShopStack extends Stack {
         USER_POOL_ID: userPool.userPoolId,
         CURSOR_DASHBOARD_API_KEY: process.env.CURSOR_DASHBOARD_API_KEY ?? "",
         CURSOR_CLOUD_REPO: process.env.CURSOR_CLOUD_REPO ?? "https://github.com/jaganathan-vinod/smartshop",
-        CURSOR_CLOUD_REF: process.env.CURSOR_CLOUD_REF ?? "dashboard",
+        CURSOR_CLOUD_REF: process.env.CURSOR_CLOUD_REF ?? "main",
       },
     });
 

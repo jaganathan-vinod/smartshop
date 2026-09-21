@@ -34,7 +34,7 @@ function repoUrl(): string {
 }
 
 function startingRef(): string {
-  return process.env.CURSOR_CLOUD_REF?.trim() || "dashboard";
+  return process.env.CURSOR_CLOUD_REF?.trim() || "main";
 }
 
 function dashboardBrief(userPrompt: string): string {
