@@ -13,7 +13,7 @@ SmartShop lets customers create an account in Amazon Cognito (email and password
 
 - Demonstrate a complete, trustworthy checkout path on the web and through the assistant (text, voice, image).
 - Use one pricing engine so web and chat never disagree on money.
-- Keep v1 small: simulated checkout, seeded catalogue plus admin APIs, no merchant UI.
+- Keep v1 shopping small: simulated checkout, seeded catalogue plus admin product APIs, no merchant product-CRUD UI. Phase 7 adds an admin **generated dashboard** (Cursor SDK), not a replacement for those APIs.
 
 ## 3. Success criteria
 
@@ -29,7 +29,7 @@ on the web **and** through the assistant (typed chat, spoken turns, or a product
 | --- | --- |
 | **Visitor** | Unauthenticated person. May browse and search the catalogue. Cannot mutate a cart or place an order. |
 | **Customer** | Shopper with a Cognito User Pool account (email + password). May have `isPremium`. Owns a server-side cart and order history. |
-| **Admin** | Cognito group `admin`. Creates/updates products and toggles premium flags via API (Postman/curl in v1). No admin UI. |
+| **Admin** | Cognito group `admin`. Creates/updates products and toggles premium flags via API (Postman/curl). Phase 7 adds a **generated executive dashboard** builder only — not a merchant product-CRUD UI. |
 | **Assistant** | Amazon Bedrock AgentCore Runtime (text, voice, image) acting **as the signed-in customer**. Tools call SmartShop over IAM service-to-service with `userId` injected from the Cognito JWT. Cannot bypass confirmation, invent prices, or call admin APIs. |
 
 ## 5. Customer capabilities
@@ -44,6 +44,14 @@ on the web **and** through the assistant (typed chat, spoken turns, or a product
 8. Receive an **order number**.
 9. Retrieve **previous orders**.
 10. Perform the same shopping journey through an **AI assistant** using text, voice, and/or a product image.
+
+**Admin (Phase 7)**
+
+1. Sign in with an account in Cognito group `admin`.
+2. Describe an executive dashboard in a prompt (metrics and objectives).
+3. Preview generated dashboard code on **live** order/catalogue/user metrics.
+4. Refine the same Cursor agent thread, or Approve a publish through CI/CDK.
+5. Continue to manage products and premium flags through existing admin **APIs** (no merchant CRUD UI).
 
 ## 6. Pricing rules
 
@@ -112,10 +120,12 @@ totalCents           = subtotalCents − premiumDiscountCents + deliveryCents + 
 
 Phase 5 (AgentCore assistant) is additive. It must not change catalogue, cart, checkout, orders, login, CORS, or JWT rules. The assistant reuses the same cart and orders; it does not replace the web APIs. Details: [project-technical-requirements.md](project-technical-requirements.md) §2.4 and [US-5.08](usecase-stories/phase-5-assistant.md).
 
+Phase 7 (admin dashboard builder) is a **separate** additive surface. It uses the Cursor SDK, not AgentCore. It must not change shopping, assistant tools, or existing `/v1/admin/products` contracts. Dashboards read orders/catalogue/users; they do not invent metrics. Details: [project-technical-requirements.md](project-technical-requirements.md) §2.5 and [US-7.07](usecase-stories/phase-7-admin-dashboard.md).
+
 ## 12. Out of scope for v1
 
 - Real payments and refunds
-- Admin / merchant UI
+- Merchant product-CRUD UI (admin product/premium APIs stay curl/Postman; Phase 7 is generated dashboards only)
 - Email or SMS notifications
 - Returns, reviews, wishlists
 - Guest checkout
