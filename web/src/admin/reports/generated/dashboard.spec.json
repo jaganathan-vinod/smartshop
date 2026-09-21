@@ -1,1 +1,19 @@
-{"title":"Weekly executive","kpis":["gmv","orderCount","aov","targetPace","stockouts"],"charts":["gmvByDay","topProducts","deliveryMix","premium"],"unavailable":["viewToOrder"],"gmvTargetCents":1200000}
+{
+  "title": "360° OS socks sales",
+  "kpis": [
+    "gmv",
+    "orderCount",
+    "aov",
+    "targetPace",
+    "stockouts",
+    "premiumShare"
+  ],
+  "charts": [
+    "gmvByDay",
+    "topProducts",
+    "deliveryMix",
+    "premium"
+  ],
+  "unavailable": ["viewToOrder"],
+  "gmvTargetCents": 1200000
+}
