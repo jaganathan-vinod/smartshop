@@ -118,6 +118,12 @@ export class SmartShopStack extends Stack {
       removalPolicy: RemovalPolicy.DESTROY,
     });
 
+    const reportJobs = new dynamodb.Table(this, "ReportJobs", {
+      partitionKey: { name: "jobId", type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: RemovalPolicy.DESTROY,
+    });
+
     const repoRoot = path.join(__dirname, "../..");
 
     const apiLogGroup = new logs.LogGroup(this, "ApiFnLogs", {
@@ -148,6 +154,11 @@ export class SmartShopStack extends Stack {
         ORDERS_TABLE: orders.tableName,
         ORDER_NUMBERS_TABLE: orderNumbers.tableName,
         CONVERSATIONS_TABLE: conversations.tableName,
+        REPORT_JOBS_TABLE: reportJobs.tableName,
+        USER_POOL_ID: userPool.userPoolId,
+        CURSOR_DASHBOARD_API_KEY: process.env.CURSOR_DASHBOARD_API_KEY ?? "",
+        CURSOR_CLOUD_REPO: process.env.CURSOR_CLOUD_REPO ?? "https://github.com/jaganathan-vinod/smartshop",
+        CURSOR_CLOUD_REF: process.env.CURSOR_CLOUD_REF ?? "dashboard",
       },
     });
 
@@ -157,6 +168,13 @@ export class SmartShopStack extends Stack {
     orders.grantReadWriteData(apiFn);
     orderNumbers.grantReadWriteData(apiFn);
     conversations.grantReadWriteData(apiFn);
+    reportJobs.grantReadWriteData(apiFn);
+    apiFn.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["cognito-idp:AdminListGroupsForUser"],
+        resources: [userPool.userPoolArn],
+      }),
+    );
 
     const jwtAuthorizer = new HttpUserPoolAuthorizer(
       "CognitoJwt",

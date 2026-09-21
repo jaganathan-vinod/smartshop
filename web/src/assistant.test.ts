@@ -64,6 +64,12 @@ describe("assistant display text", () => {
     const raw =
       "The current quote for your cart with STANDARD delivery is: - Subtotal: $89.99 - Delivery: $4.99 - Total: $94.98 Would you like to place this order?";
     assert.equal(assistantAsksToConfirm(raw), true);
+    assert.equal(
+      assistantAsksToConfirm(
+        "Here is the total price for your current cart:\nWould you like to proceed with the order?",
+      ),
+      true,
+    );
     assert.deepEqual(assistantParagraphs(raw), [
       "The current quote for your cart with STANDARD delivery is:",
       "Subtotal: $89.99",

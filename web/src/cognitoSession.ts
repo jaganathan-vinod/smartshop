@@ -48,6 +48,31 @@ export async function requireIdToken(): Promise<string> {
   throw new Error("Sign-in session is not ready. Try again.");
 }
 
+export function groupsFromIdToken(token: string): string[] {
+  const parts = token.split(".");
+  if (parts.length < 2) {
+    return [];
+  }
+  try {
+    const padded = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const json = JSON.parse(atob(padded)) as { "cognito:groups"?: unknown };
+    const groups = json["cognito:groups"];
+    if (Array.isArray(groups)) {
+      return groups.filter((item): item is string => typeof item === "string");
+    }
+    if (typeof groups === "string" && groups.length > 0) {
+      return groups.split(",").map((part) => part.trim()).filter(Boolean);
+    }
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+export function tokenHasAdminGroup(token: string | undefined): boolean {
+  return Boolean(token && groupsFromIdToken(token).includes("admin"));
+}
+
 export async function signOutIfNeeded(): Promise<void> {
   await ensureAmplify();
   const { getCurrentUser, signOut } = await import("aws-amplify/auth");

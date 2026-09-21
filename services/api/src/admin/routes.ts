@@ -1,4 +1,4 @@
-import type { Context, Hono } from "hono";
+import type { Hono } from "hono";
 import { ZodError } from "zod";
 import {
   createProductRequestSchema,
@@ -7,7 +7,6 @@ import {
   productIdSchema,
   replaceProductRequestSchema,
 } from "@smartshop/shared";
-import { currentClaims } from "../auth.js";
 import { jsonError, zodError } from "../http.js";
 import {
   createProduct,
@@ -15,21 +14,11 @@ import {
   replaceProduct,
 } from "../catalog/store.js";
 import { setPremium } from "../identity/store.js";
-
-function requireAdmin(c: Context) {
-  const claims = currentClaims();
-  if (!claims) {
-    return jsonError(c, 401, "UNAUTHENTICATED", "Sign in required");
-  }
-  if (!claims.groups.includes("admin")) {
-    return jsonError(c, 403, "FORBIDDEN", "Admin role required");
-  }
-  return null;
-}
+import { denyUnlessAdmin } from "./guard.js";
 
 export function registerAdminRoutes(app: Hono): void {
   app.post("/v1/admin/products", async (c) => {
-    const denied = requireAdmin(c);
+    const denied = await denyUnlessAdmin(c);
     if (denied) {
       return denied;
     }
@@ -49,7 +38,7 @@ export function registerAdminRoutes(app: Hono): void {
   });
 
   app.put("/v1/admin/products/:productId", async (c) => {
-    const denied = requireAdmin(c);
+    const denied = await denyUnlessAdmin(c);
     if (denied) {
       return denied;
     }
@@ -73,7 +62,7 @@ export function registerAdminRoutes(app: Hono): void {
   });
 
   app.patch("/v1/admin/products/:productId", async (c) => {
-    const denied = requireAdmin(c);
+    const denied = await denyUnlessAdmin(c);
     if (denied) {
       return denied;
     }
@@ -97,7 +86,7 @@ export function registerAdminRoutes(app: Hono): void {
   });
 
   app.patch("/v1/admin/users/:userId/premium", async (c) => {
-    const denied = requireAdmin(c);
+    const denied = await denyUnlessAdmin(c);
     if (denied) {
       return denied;
     }

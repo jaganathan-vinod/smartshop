@@ -7,4 +7,5 @@ export * from "./money.js";
 export * from "./order.js";
 export * from "./product.js";
 export * from "./quote.js";
+export * from "./reports.js";
 export * from "./user.js";

@@ -1,25 +1,21 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { sameCognitoLogin } from "./cognitoSession";
+import { groupsFromIdToken, tokenHasAdminGroup } from "./cognitoSession";
 
-describe("sameCognitoLogin", () => {
-  it("matches email loginId when username is a Cognito UUID", () => {
-    assert.equal(
-      sameCognitoLogin(
-        { username: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee", signInDetails: { loginId: "a@example.com" } },
-        "a@example.com",
-      ),
-      true,
-    );
+function tokenWithPayload(payload: Record<string, unknown>): string {
+  const json = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  return `hdr.${json}.sig`;
+}
+
+describe("admin group from ID token", () => {
+  it("reads cognito:groups array", () => {
+    const token = tokenWithPayload({ sub: "admin-1", "cognito:groups": ["admin"] });
+    assert.deepEqual(groupsFromIdToken(token), ["admin"]);
+    assert.equal(tokenHasAdminGroup(token), true);
   });
 
-  it("does not reuse another user’s leftover session", () => {
-    assert.equal(
-      sameCognitoLogin(
-        { username: "other@example.com", signInDetails: { loginId: "other@example.com" } },
-        "a@example.com",
-      ),
-      false,
-    );
+  it("does not treat a customer token as admin", () => {
+    const token = tokenWithPayload({ sub: "user-a" });
+    assert.equal(tokenHasAdminGroup(token), false);
   });
 });

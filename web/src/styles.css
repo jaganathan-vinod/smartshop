@@ -1361,6 +1361,279 @@ button.chat-send {
   line-height: 1.35;
 }
 
+.report-page {
+  max-width: 52rem;
+}
+
+.report-board {
+  margin: 1.2rem 0 1.6rem;
+  padding: 1.1rem 1.2rem;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+}
+
+.report-board-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: baseline;
+  margin-bottom: 1rem;
+}
+
+.report-board-head h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.report-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.report-kpi {
+  padding: 0.7rem 0.8rem;
+  background: var(--mint);
+  border-radius: 0.7rem;
+}
+
+.report-kpi strong {
+  display: block;
+  font-size: 1.15rem;
+}
+
+.report-kpi span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.8rem 0;
+  font-size: 0.92rem;
+}
+
+.report-table caption {
+  text-align: left;
+  font-weight: 650;
+  margin-bottom: 0.4rem;
+}
+
+.report-table th,
+.report-table td {
+  text-align: left;
+  padding: 0.35rem 0.4rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.report-prompt {
+  display: grid;
+  gap: 0.7rem;
+  margin: 1.2rem 0;
+}
+
+.report-prompt textarea {
+  display: block;
+  width: 100%;
+  margin-top: 0.35rem;
+  min-height: 5rem;
+}
+
+.pulse-board {
+  margin: 1.2rem 0 1.6rem;
+  padding: 1.2rem 1.3rem 1.4rem;
+  border-radius: 1rem;
+  background: var(--card);
+  border: 1px solid var(--line);
+}
+
+.pulse-board.is-navy,
+.pulse-board.is-command,
+.command-board {
+  background: #0b1c2c;
+  color: #e8f4ef;
+  border-color: #1c3a4d;
+}
+
+.pulse-board.is-navy .muted,
+.pulse-board.is-command .muted,
+.command-board .muted {
+  color: #9bb8b0;
+}
+
+.pulse-hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 1.2rem;
+  align-items: center;
+  margin-bottom: 1.1rem;
+}
+
+.pulse-hero h2 {
+  margin: 0.15rem 0 0.35rem;
+}
+
+.pulse-gmv {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 1.8rem;
+  font-weight: 700;
+}
+
+.pulse-ring {
+  margin: 0;
+  position: relative;
+  width: 7.2rem;
+}
+
+.pulse-ring svg {
+  display: block;
+  transform: rotate(-90deg);
+}
+
+.pulse-ring-track,
+.pulse-ring-fill {
+  fill: none;
+  stroke-width: 8;
+}
+
+.pulse-ring-track {
+  stroke: #2a4a5c;
+}
+
+.pulse-board.is-store .pulse-ring-track {
+  stroke: var(--line);
+}
+
+.pulse-ring-fill {
+  stroke: #8fd6c4;
+  stroke-linecap: round;
+}
+
+.pulse-board.is-navy .pulse-ring-fill,
+.pulse-board.is-command .pulse-ring-fill {
+  stroke: #c9a227;
+}
+
+.pulse-ring figcaption {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  text-align: center;
+}
+
+.pulse-ring figcaption strong {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 1.05rem;
+}
+
+.pulse-ring figcaption span {
+  font-size: 0.72rem;
+}
+
+.pulse-rail {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  gap: 0.7rem;
+  margin-bottom: 1rem;
+}
+
+.pulse-kpi {
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.65rem;
+  background: var(--mint);
+}
+
+.pulse-board.is-navy .pulse-kpi,
+.pulse-board.is-command .pulse-kpi {
+  background: #123044;
+}
+
+.pulse-kpi strong {
+  display: block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 1.15rem;
+}
+
+.pulse-kpi span {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.pulse-board h3 {
+  margin: 0.9rem 0 0.45rem;
+  font-size: 0.95rem;
+}
+
+.pulse-horizon {
+  list-style: none;
+  display: flex;
+  align-items: flex-end;
+  gap: 0.18rem;
+  height: 5rem;
+  margin: 0;
+  padding: 0;
+}
+
+.pulse-horizon span {
+  display: block;
+  width: 0.45rem;
+  background: #8fd6c4;
+  border-radius: 0.15rem 0.15rem 0 0;
+}
+
+.pulse-board.is-navy .pulse-horizon span,
+.pulse-board.is-command .pulse-horizon span {
+  background: #c9a227;
+}
+
+.pulse-lanes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.pulse-lanes li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.2rem 0.8rem;
+}
+
+.pulse-lanes i {
+  display: block;
+  grid-column: 1 / -1;
+  height: 0.35rem;
+  background: #8fd6c4;
+  border-radius: 99px;
+}
+
+.pulse-board.is-navy .pulse-lanes i,
+.pulse-board.is-command .pulse-lanes i {
+  background: #8fd6c4;
+}
+
+.pulse-chips {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+}
+
+.pulse-chips li {
+  padding: 0.25rem 0.55rem;
+  border-radius: 99px;
+  border: 1px solid currentColor;
+  font-size: 0.8rem;
+}
+
 @media (max-width: 800px) {
   .chat-pane.is-open {
     top: 0;

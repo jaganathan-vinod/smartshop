@@ -115,3 +115,7 @@ AgentCore Runtime hosts text, voice (Nova Sonic WebSocket), and image shopping. 
 ## Phase 6
 
 Hardening: JWT/group checks (customer on admin → 403; another user’s order → 404), JSON request logs without tokens, CloudWatch alarms `smartshop-api-lambda-errors` and `smartshop-api-5xx`, CORS locked to the CloudFront origin. Operator steps: [docs/runbook.md](docs/runbook.md).
+
+## Phase 7
+
+Admin **dashboard builder** (not customer chat): an admin types an executive-view prompt; a Cursor SDK **cloud** agent generates dashboard code; preview on live metrics; Refine on the same agent or Approve through CI/CDK. The model does not deploy. Shopping APIs, AgentCore, and assistant tools stay frozen ([§2.5](docs/project-technical-requirements.md), [US-7.07](docs/usecase-stories/phase-7-admin-dashboard.md)). Plan: [docs/usecase-stories/phase-7-admin-dashboard.md](docs/usecase-stories/phase-7-admin-dashboard.md). First slice: `/admin/reports`, read-only metrics, job create/poll/refine/approve. Deploy with `CURSOR_DASHBOARD_API_KEY` to generate; without it, metrics still load and generate returns 503.

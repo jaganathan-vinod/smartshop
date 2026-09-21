@@ -10,6 +10,7 @@ export type ConversationRecord = {
   pendingDeliveryMethod?: DeliveryMethod;
   quotePresentedAt?: string;
   lastQuoteBreakdown?: PriceBreakdown;
+  lastOfferedProductIds?: string[];
   updatedAt: string;
 };
 
@@ -43,6 +44,11 @@ export async function getConversation(
         ? result.Item.quotePresentedAt
         : undefined,
     lastQuoteBreakdown: result.Item.lastQuoteBreakdown as PriceBreakdown | undefined,
+    lastOfferedProductIds: Array.isArray(result.Item.lastOfferedProductIds)
+      ? result.Item.lastOfferedProductIds.filter(
+          (item: unknown): item is string => typeof item === "string" && item.length > 0,
+        )
+      : undefined,
     updatedAt:
       typeof result.Item.updatedAt === "string"
         ? result.Item.updatedAt

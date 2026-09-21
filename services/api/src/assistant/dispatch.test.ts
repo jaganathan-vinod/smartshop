@@ -6,7 +6,7 @@ import {
   stripForgedUserId,
 } from "@smartshop/shared";
 import { iamArnFromEvent } from "../auth.js";
-import { AssistantToolError } from "./dispatch.js";
+import { AssistantToolError, resolveUpsertProductId } from "./dispatch.js";
 
 export function assertConfirmAllowed(userConfirmed: boolean, quotePresentedAt?: string) {
   if (!userConfirmed) {
@@ -45,6 +45,28 @@ describe("assistant tool payload", () => {
   });
 });
 
+describe("resolveUpsertProductId", () => {
+  it("keeps a valid productId from the model", () => {
+    assert.equal(
+      resolveUpsertProductId("prod-running-socks", ["prod-running-socks"]),
+      "prod-running-socks",
+    );
+  });
+
+  it("uses the single offered product when the model sends a name", () => {
+    assert.equal(resolveUpsertProductId("Running Socks", ["prod-running-socks"]), "prod-running-socks");
+    assert.equal(resolveUpsertProductId("socks", ["prod-running-socks"]), "prod-running-socks");
+    assert.equal(resolveUpsertProductId(undefined, ["prod-running-socks"]), "prod-running-socks");
+  });
+
+  it("does not guess when several products were offered", () => {
+    assert.equal(
+      resolveUpsertProductId("Running Socks", ["prod-running-socks", "prod-cotton-tee"]),
+      undefined,
+    );
+  });
+});
+
 describe("explicit confirm phrase", () => {
   it("accepts yes and place it", () => {
     assert.equal(isExplicitConfirm("yes"), true);
@@ -52,6 +74,8 @@ describe("explicit confirm phrase", () => {
     assert.equal(isExplicitConfirm("yes confirm order"), true);
     assert.equal(isExplicitConfirm("yes, confirm"), true);
     assert.equal(isExplicitConfirm("place the order"), true);
+    assert.equal(isExplicitConfirm("yes order"), true);
+    assert.equal(isExplicitConfirm("yes, order"), true);
   });
 
   it("rejects implied consent", () => {

@@ -1,8 +1,10 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { AdminProtected } from "./AdminProtected";
 import { AuthProvider } from "./auth";
 import { ChatProvider } from "./chat";
 import { Layout } from "./Layout";
 import { Protected } from "./Protected";
+import { AdminReportsPage } from "./pages/AdminReportsPage";
 import { CartPage } from "./pages/CartPage";
 import { CategoryPage } from "./pages/CategoryPage";
 import { ChatPage } from "./pages/ChatPage";
@@ -35,6 +37,9 @@ export function App() {
                 <Route path="/orders" element={<OrdersPage />} />
                 <Route path="/orders/:orderId" element={<OrderDetailPage />} />
                 <Route path="/chat" element={<ChatPage />} />
+                <Route element={<AdminProtected />}>
+                  <Route path="/admin/reports" element={<AdminReportsPage />} />
+                </Route>
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>

@@ -15,6 +15,7 @@ describe("parseGroups", () => {
     assert.deepEqual(parseGroups("admin"), ["admin"]);
     assert.deepEqual(parseGroups(["admin", "other"]), ["admin", "other"]);
     assert.deepEqual(parseGroups('["admin"]'), ["admin"]);
+    assert.deepEqual(parseGroups("[admin]"), ["admin"]);
   });
 });
 
@@ -96,6 +97,49 @@ describe("claimsFromEvent", () => {
       },
     } as unknown as Parameters<typeof claimsFromEvent>[0]);
     assert.equal(claims?.email, "a@example.com");
+  });
+
+  it("fills cognito:groups from the verified Bearer payload when HTTP API omits the array claim", () => {
+    const payload = Buffer.from(
+      JSON.stringify({ sub: "admin-1", "cognito:groups": ["admin"] }),
+    ).toString("base64url");
+    const claims = claimsFromEvent({
+      version: "2.0",
+      routeKey: "GET /v1/admin/metrics/summary",
+      rawPath: "/v1/admin/metrics/summary",
+      headers: { authorization: `Bearer header.${payload}.sig` },
+      requestContext: {
+        authorizer: {
+          jwt: {
+            claims: {
+              sub: "admin-1",
+              email: "admin@example.com",
+            },
+          },
+        },
+      },
+    } as unknown as Parameters<typeof claimsFromEvent>[0]);
+    assert.deepEqual(claims?.groups, ["admin"]);
+  });
+
+  it("does not take groups from a Bearer payload whose sub does not match the authorizer", () => {
+    const payload = Buffer.from(
+      JSON.stringify({ sub: "attacker", "cognito:groups": ["admin"] }),
+    ).toString("base64url");
+    const claims = claimsFromEvent({
+      version: "2.0",
+      routeKey: "GET /v1/admin/metrics/summary",
+      rawPath: "/v1/admin/metrics/summary",
+      headers: { authorization: `Bearer header.${payload}.sig` },
+      requestContext: {
+        authorizer: {
+          jwt: {
+            claims: { sub: "user-a" },
+          },
+        },
+      },
+    } as unknown as Parameters<typeof claimsFromEvent>[0]);
+    assert.deepEqual(claims?.groups, []);
   });
 });
 

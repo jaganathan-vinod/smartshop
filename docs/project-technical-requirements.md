@@ -142,6 +142,32 @@ Phase 5 is **additive**. Web shopping from Phases 1–4 and 6 stays the source o
 
 **Highest breakage risk:** API Gateway HTTP API matches `/{proxy+}` JWT for any new `POST /v1/...` unless a **more specific** `addRoutes` entry exists. Internal tools **must** be that specific IAM route. Browser CORS is unused by Runtime (service-to-service); do not expand CORS for SigV4 headers unless a browser starts calling internal routes (it must not).
 
+### 2.5 Phase 7 must not change existing behaviour
+
+Phase 7 (admin dashboard builder) is **additive** and **separate from Phase 5**. It does not run inside AgentCore Runtime. Customer shopping and the shopping assistant stay the source of truth.
+
+**Frozen (in addition to §2.4):**
+
+| Surface | Today (do not regress) |
+| --- | --- |
+| AgentCore Runtime, Nova, `POST /v1/internal/assistant/tools` | Unchanged contracts, IAM role, confirm guard |
+| Existing `/v1/admin/products*` and premium PATCH | Same JWT + `admin` group; not replaced by the dashboard |
+| Customer SPA shopping and `/chat` | No behaviour change to “match” reports |
+
+**Allowed additions only:** read-only `/v1/admin/metrics/*`, `/v1/admin/reports/jobs*` (JWT + admin group), optional preview hosting, `/admin/reports` SPA page, Cursor SDK orchestration **in Lambda or a dedicated worker** with secrets off the browser, tests.
+
+**Must not:**
+
+- Put `CURSOR_API_KEY` in the SPA, `config.json`, or generated dashboard source.
+- Let the Cursor agent assume the CDK deploy role or call `cdk deploy`.
+- Teach the dashboard agent shopping tools (`upsert_cart_item`, `confirm_order`, …).
+- Dual-use AgentCore Runtime for report generation.
+- Invent metrics that are not in §5.9 / US-7.06.
+
+**Highest breakage risk:** a cloud agent with a broad repo checkout editing `services/api` cart/order handlers or `infra/lib/smartshop-stack.ts`. The job prompt and/or path allowlist must confine writes to the reports generated directory.
+
+Shopping Lambda timeout stays 30 s. Report jobs are **async**: the HTTP handler starts `Agent.create` / `send`, stores `agentId` + `run.id`, and returns. A worker or poller calls `wait()` — the request thread must not block on the full generate.
+
 ## 3. Non-functional requirements
 
 - API p95 latency under 500 ms excluding AgentCore / Bedrock.
@@ -269,6 +295,27 @@ Reject if the caller is not IAM, if the header is missing, or if `tool` is not i
 
 CDK: add an **explicit** `httpApi.addRoutes` for this path with an IAM authorizer. Do not rely on `/{proxy+}` (JWT). Do not change `JWT_PROTECTED_METHODS`. Tools invoke existing `cart` / `pricing` / `orders` functions; they do not duplicate HTTP handlers or alter those routes.
 
+### 5.9 Admin dashboard builder (admin JWT, Phase 7)
+
+All routes: Cognito JWT + group `admin`. Same `/{proxy+}` JWT authorizer as other admin APIs (no new default authorizer). Customers → 403.
+
+**Jobs**
+
+- `POST /v1/admin/reports/jobs` — `{ prompt }` → `{ jobId, agentId, status }`
+- `GET /v1/admin/reports/jobs/{jobId}` — status, error, `previewUrl`
+- `POST /v1/admin/reports/jobs/{jobId}/messages` — `{ prompt }` refine via `Agent.resume` + `send`
+- `POST /v1/admin/reports/jobs/{jobId}/approve` — start publish pipeline; does not invoke the model
+
+**Metrics (read-only; integer cents, USD)**
+
+- `GET /v1/admin/metrics/summary` — GMV, order count, AOV, window (e.g. last 7 days)
+- `GET /v1/admin/metrics/products` — top products by GMV / units from order lines
+- `GET /v1/admin/metrics/stock` — SKUs at zero or below a threshold
+- `GET /v1/admin/metrics/delivery` — STANDARD vs EXPRESS mix
+- `GET /v1/admin/metrics/premium` — premium customer share vs GMV
+
+Widgets in generated dashboards **must** call these (or a typed client). No writes. Unknown KPIs are omitted or returned as `available: false`.
+
 ## 6. Frontend surface
 
 | Route | Purpose |
@@ -283,6 +330,7 @@ CDK: add an **explicit** `httpApi.addRoutes` for this path with an IAM authorize
 | `/orders` | History |
 | `/orders/:id` | Order detail |
 | `/chat` or drawer | Assistant: text, image attach, voice (replace the Phase 4 stub only) |
+| `/admin/reports` | Admin only: prompt, preview iframe, Refine, Approve (Phase 7) |
 
 Checkout must show: lines, subtotal, premium discount (or “not applied”), delivery choice, delivery fee, tax, **total**, and a **Place order** control that stays disabled until the customer explicitly confirms (checkbox or equivalent).
 
@@ -292,6 +340,7 @@ Chat must show assistant text plus the same numeric breakdown when a quote tool 
 
 - JWT authorizer on public API Gateway routes; IAM authorizer on `/v1/internal/*`. Lambda also checks `sub` and groups on JWT routes.
 - Admin routes require group `admin`.
+- Phase 7 report jobs and metrics are admin JWT only. Cursor API key is server-side. Generated dashboards are read-only consumers of metrics.
 - Least-privilege IAM: Lambda can read/write only SmartShop tables and the assistant-upload prefix (presign). Runtime role can invoke internal tools, read uploads, and call Bedrock / Nova Sonic. Runtime cannot call `/v1/admin/*`.
 - Internal assistant routes: IAM authorizer only. Public cart/order routes: JWT only.
 - CORS locked to the CloudFront origin in Phase 6.
@@ -304,7 +353,8 @@ Chat must show assistant text plus the same numeric breakdown when a quote tool 
 - Orders: missing `confirm`, stock conditional-write failure, idempotent replay.
 - Authz: customer cannot hit admin; customer A cannot `GET` customer B’s order.
 - Assistant: fixture that must quote before confirm; reject confirm without user yes (text and spoken). Internal tools reject customer JWT and forged `userId` in args.
-- UI (Phase 4): sign up → confirm email → sign in → browse → cart → quote → confirm → history in the browser. **This path must still pass after Phase 5** (US-5.08). Existing unit tests for pricing, orders, authz, and catalog stay green with no contract changes.
+- UI (Phase 4): sign up → confirm email → sign in → browse → cart → quote → confirm → history in the browser. **This path must still pass after Phase 5** (US-5.08) **and Phase 7** (US-7.07). Existing unit tests for pricing, orders, authz, and catalog stay green with no contract changes.
+- Admin dashboard: non-admin cannot start jobs; approve does not call Cursor; metrics match order fixtures.
 
 ## 9. Implementation phases
 
@@ -320,5 +370,6 @@ Work happens only in `/Users/dhivya/vinod/cursor-projects/smartshop` after the w
 | 4 SPA | React Vite UI, `/signup` `/confirm` `/login`, CloudFront |
 | 5 Assistant | AgentCore Runtime (text, voice, image), IAM service-to-service tools, confirmation guard in code. Additive only — see §2.4 |
 | 6 Hardening | IAM, logs/alarms, CORS, Cognito admin bootstrap README |
+| 7 Admin dashboard builder | Cursor SDK cloud agent, preview, human Approve → CI/CDK. Additive only — see §2.5 |
 
 Phase use-case stories: [usecase-stories/](usecase-stories/).

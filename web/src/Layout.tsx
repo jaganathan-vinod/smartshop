@@ -7,7 +7,7 @@ import { useChat } from "./chat";
 import { ChatPanel } from "./pages/ChatPage";
 
 export function Layout() {
-  const { ready, user, signOut } = useAuth();
+  const { ready, user, isAdmin, signOut } = useAuth();
   const { paneVisible, toggleChat } = useChat();
   const navigate = useNavigate();
   const location = useLocation();
@@ -99,6 +99,7 @@ export function Layout() {
           ))}
         </nav>
         <div className="header-actions">
+          {isAdmin ? <NavLink to="/admin/reports">Reports</NavLink> : null}
           {user ? (
             <button
               type="button"

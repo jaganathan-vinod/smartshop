@@ -30,7 +30,7 @@ smartshop/
 │   ├── folder-structure.md
 │   └── usecase-stories/
 │       ├── README.md
-│       └── phase-0 … phase-6 .md
+│       └── phase-0 … phase-7 .md
 ├── scripts/
 │   ├── seed.ts
 │   └── verify-phase-0.sh

@@ -103,3 +103,5 @@ Add a repository secret:
 3. Name: `CURSOR_TO_GIT_API_KEY`
 
 Without the secret, the workflow still succeeds and writes a skip note in `logs/npm-audit-suggestions.md`.
+
+Phase 7 dashboard jobs (when implemented) use a **server-side** Cursor key as well — cloud `Agent.create` / `send` / `resume`, not `Agent.prompt`. Prefer a distinct secret (for example `CURSOR_DASHBOARD_API_KEY`) so audit automation and dashboard generation can be rotated separately. Never put either key in the SPA. See [phase-7-admin-dashboard.md](usecase-stories/phase-7-admin-dashboard.md) US-7.05.

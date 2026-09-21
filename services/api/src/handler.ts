@@ -4,6 +4,8 @@ import type { HealthResponse } from "@smartshop/shared";
 import { apiError } from "@smartshop/shared";
 import { withClaims } from "./auth.js";
 import { registerAdminRoutes } from "./admin/routes.js";
+import { registerAdminMetricsRoutes } from "./admin/metrics/routes.js";
+import { registerAdminReportRoutes } from "./admin/reports/routes.js";
 import { registerAssistantRoutes } from "./assistant/routes.js";
 import { registerAssistantUploadRoutes } from "./assistant/uploads.js";
 import { registerCartRoutes } from "./cart/routes.js";
@@ -42,6 +44,8 @@ registerCartRoutes(app);
 registerQuoteRoutes(app);
 registerOrderRoutes(app);
 registerAdminRoutes(app);
+registerAdminMetricsRoutes(app);
+registerAdminReportRoutes(app);
 registerAssistantRoutes(app);
 registerAssistantUploadRoutes(app);
 

@@ -151,8 +151,8 @@ const TOOL_CONFIG: ToolConfiguration = {
 const SYSTEM = `You are the SmartShop shopping assistant for one signed-in customer.
 Use tools for catalogue, cart, quotes, and orders. Never invent productIds or money amounts.
 Keep prior turns in mind: if you just offered a product and the customer says yes / add it / add to cart, call upsert_cart_item with that productId immediately. Do not ask for the product name again.
-Quote totals must come from get_quote. Do not call confirm_order unless the customer's latest message is an explicit yes after a quote (for example "yes, place it").
-When that explicit yes arrives, call confirm_order in the same turn. Do not ask for confirmation again.
+Quote totals must come from get_quote. Do not call confirm_order unless the customer's latest message is an explicit yes after a quote (for example "yes, place it", "yes order").
+When that explicit yes arrives, call confirm_order in the same turn. Do not call get_quote again and do not ask for confirmation again.
 Never call admin APIs. Keep replies short. Write product names in **bold**. Put price and facts on separate "- " lines.
 Never include <thinking> tags, hidden reasoning, or chain-of-thought in the customer-facing reply.`;
 
@@ -230,9 +230,15 @@ export async function runAssistantTurn(input: {
   const toolsUsed: AssistantToolName[] = [];
   let orderNumber: string | undefined;
 
+  const userConfirmed = isExplicitConfirm(input.lastUserMessage);
   const userContent: Message["content"] = [];
   if (input.message?.trim()) {
     userContent.push({ text: input.message.trim() });
+  }
+  if (userConfirmed) {
+    userContent.push({
+      text: "This is an explicit order confirmation. Call confirm_order with confirm true now. Do not call get_quote or ask to confirm again.",
+    });
   }
   if (input.imageObjectKey && uploadsBucket) {
     const s3 = new S3Client({ region });
@@ -257,7 +263,6 @@ export async function runAssistantTurn(input: {
   } else {
     messages.push({ role: "user", content: userContent });
   }
-  const userConfirmed = isExplicitConfirm(input.lastUserMessage);
 
   for (let i = 0; i < MAX_ITERATIONS; i += 1) {
     const response = await bedrock.send(
