@@ -281,53 +281,69 @@ export function ChatPanel() {
                 </p>
               ) : null}
             </div>
-          </li>
-        ))}
-        {busy ? (
-          <li className="chat-row chat-row-assistant">
-            <span className="chat-face chat-face-assistant" aria-hidden="true">
-              SS
-            </span>
-            <div className="chat-bubble chat-bubble-assistant chat-typing" aria-label="Assistant is typing">
-              <span />
-              <span />
-              <span />
-            </div>
-          </li>
-        ) : null}
-      </ol>
-      {error ? <p className="chat-banner flash error">{error}</p> : null}
-      <div className="chat-dock">
-        {showStarters ? (
-          <div className="chat-chips" aria-label="Suggested prompts">
-            {STARTERS.map((prompt) => (
-              <button key={prompt} type="button" className="chat-chip" onClick={() => void send(prompt)}>
-                {prompt}
+          ) : null}
+          {showAddToCart ? (
+            <div className="chat-chips">
+              <button
+                type="button"
+                className="chat-chip chat-chip-confirm"
+                disabled={busy}
+                onClick={() => void send("yes, add it to my cart")}
+              >
+                Add to cart
               </button>
-            ))}
-          </div>
-        ) : null}
-        {showAddToCart ? (
-          <div className="chat-chips">
+            </div>
+          ) : null}
+          {showConfirm ? (
+            <div className="chat-chips">
+              <button
+                type="button"
+                className="chat-chip chat-chip-confirm"
+                disabled={busy}
+                onClick={() => void send("yes, place it")}
+              >
+                Confirm order
+              </button>
+            </div>
+          ) : null}
+          <form
+            className="chat-compose"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void send(draft);
+            }}
+          >
             <button
               type="button"
-              className="chat-chip chat-chip-confirm"
+              className="chat-icon"
               disabled={busy}
-              onClick={() => void send("yes, add it to my cart")}
+              aria-label="Attach a photo"
+              onClick={() => fileRef.current?.click()}
             >
-              Add to cart
+              Photo
             </button>
-          </div>
-        ) : null}
-        {showConfirm ? (
-          <div className="chat-chips">
-            <button
-              type="button"
-              className="chat-chip chat-chip-confirm"
-              disabled={busy}
-              onClick={() => void send("yes, place it")}
-            >
-              Confirm order
+            <label className="chat-field">
+              <span className="sr-only">Message</span>
+              <textarea
+                ref={inputRef}
+                value={draft}
+                rows={1}
+                placeholder="Ask to find, add, quote, or order"
+                disabled={busy}
+                onChange={(event) => {
+                  setDraft(event.target.value);
+                  resizeComposer();
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.shiftKey) {
+                    event.preventDefault();
+                    void send(draft);
+                  }
+                }}
+              />
+            </label>
+            <button className="chat-send" type="submit" disabled={busy || !draft.trim()}>
+              Send
             </button>
           </div>
         ) : null}
