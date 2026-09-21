@@ -3,9 +3,11 @@ import type {
   DeliveryMethod,
   ListProductsQuery,
   MeResponse,
+  MetricsSummary,
   Order,
   Product,
   QuoteResponse,
+  ReportJob,
 } from "@smartshop/shared";
 import { productsListPath } from "./catalog";
 import { loadConfig } from "./config";
@@ -134,4 +136,48 @@ export function listOrders(): Promise<{ orders: Order[] }> {
 
 export function getOrder(orderId: string): Promise<Order> {
   return request(`/v1/orders/${encodeURIComponent(orderId)}`);
+}
+
+export function getAdminMetricsSummary(days = 7): Promise<MetricsSummary> {
+  return request(`/v1/admin/metrics/summary?days=${days}`);
+}
+
+export function getAdminMetricsProducts(days = 7): Promise<{
+  products: Array<{ productId: string; name: string; units: number; gmvCents: number }>;
+}> {
+  return request(`/v1/admin/metrics/products?days=${days}`);
+}
+
+export function getAdminMetricsStock(): Promise<{
+  items: Array<{ productId: string; name: string; stockQty: number }>;
+}> {
+  return request("/v1/admin/metrics/stock");
+}
+
+export function createReportJob(prompt: string): Promise<ReportJob> {
+  return request("/v1/admin/reports/jobs", {
+    method: "POST",
+    body: JSON.stringify({ prompt }),
+  });
+}
+
+export function getReportJob(jobId: string): Promise<ReportJob> {
+  return request(`/v1/admin/reports/jobs/${encodeURIComponent(jobId)}`);
+}
+
+export function refineReportJob(jobId: string, prompt: string): Promise<ReportJob> {
+  return request(`/v1/admin/reports/jobs/${encodeURIComponent(jobId)}/messages`, {
+    method: "POST",
+    body: JSON.stringify({ prompt }),
+  });
+}
+
+export function approveReportJob(jobId: string): Promise<ReportJob> {
+  return request(`/v1/admin/reports/jobs/${encodeURIComponent(jobId)}/approve`, {
+    method: "POST",
+  });
+}
+
+export function getPublishedReport(): Promise<ReportJob> {
+  return request("/v1/admin/reports/published");
 }

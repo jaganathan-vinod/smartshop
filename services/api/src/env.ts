@@ -33,3 +33,7 @@ export function conversationsTableName(): string {
 export function assistantUploadsBucket(): string | undefined {
   return process.env.ASSISTANT_UPLOADS_BUCKET;
 }
+
+export function reportJobsTableName(): string {
+  return requireEnv("REPORT_JOBS_TABLE");
+}

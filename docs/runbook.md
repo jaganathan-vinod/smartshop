@@ -65,6 +65,25 @@ Premium is 10% off merchandise only, not delivery.
 
 ---
 
+## Phase 7 dashboard builder
+
+`/admin/reports` is Cognito group `admin` only. Metrics are read-only over existing tables.
+
+Generate starts a **Cursor cloud agent** (not AgentCore). Put the key on the API at deploy time, never in the SPA or `config.json`:
+
+```bash
+export CURSOR_DASHBOARD_API_KEY="cursor_..."   # Cursor Dashboard → API Keys
+export CURSOR_CLOUD_REPO="https://github.com/jaganathan-vinod/smartshop"
+export CURSOR_CLOUD_REF="dashboard"
+npm run deploy
+```
+
+Local tests can set `CURSOR_DASHBOARD_STUB=1` so jobs skip the real Cursor API.
+
+Approve stores the widget spec as the live layout (`jobId=published`). It does not give the agent CDK credentials. A later pipeline can promote `web/src/admin/reports/generated/`.
+
+---
+
 ## CORS and local SPA
 
 Deployed API CORS `Allow-Origin` is the CloudFront URL only. The hosted SPA can call the API; a random browser origin cannot.
@@ -87,4 +106,4 @@ CloudWatch alarms (console, no SNS in v1):
 ## Related
 
 - Laptop/AWS CLI bootstrap: [one-time-setup.md](one-time-setup.md)
-- Phase stories: [usecase-stories/phase-6-hardening.md](usecase-stories/phase-6-hardening.md)
+- Phase stories: [usecase-stories/phase-6-hardening.md](usecase-stories/phase-6-hardening.md), [usecase-stories/phase-7-admin-dashboard.md](usecase-stories/phase-7-admin-dashboard.md)

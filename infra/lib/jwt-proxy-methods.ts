@@ -10,6 +10,7 @@ import { HttpMethod } from "aws-cdk-lib/aws-apigatewayv2";
  *
  * Phase 5 must not change this list. Internal assistant tools use a more
  * specific IAM route instead of this catch-all.
+ * Phase 7 admin metrics/jobs are ordinary `/v1/admin/*` paths on this JWT list.
  */
 export const JWT_PROTECTED_METHODS: HttpMethod[] = [
   HttpMethod.GET,

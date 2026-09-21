@@ -5,7 +5,7 @@ import { useAuth } from "./auth";
 import { CATEGORIES, categoryPath } from "./catalog";
 
 export function Layout() {
-  const { ready, user, signOut } = useAuth();
+  const { ready, user, isAdmin, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [params] = useSearchParams();
@@ -77,6 +77,7 @@ export function Layout() {
           ))}
         </nav>
         <div className="header-actions">
+          {isAdmin ? <NavLink to="/admin/reports">Reports</NavLink> : null}
           <NavLink to="/chat">Chat</NavLink>
           <NavLink to="/cart" className="cart-link" aria-label="Cart">
             Cart

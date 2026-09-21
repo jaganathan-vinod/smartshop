@@ -1309,6 +1309,87 @@ button.chat-send {
   line-height: 1.35;
 }
 
+.report-page {
+  max-width: 52rem;
+}
+
+.report-board {
+  margin: 1.2rem 0 1.6rem;
+  padding: 1.1rem 1.2rem;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+}
+
+.report-board-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: baseline;
+  margin-bottom: 1rem;
+}
+
+.report-board-head h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.report-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.report-kpi {
+  padding: 0.7rem 0.8rem;
+  background: var(--mint);
+  border-radius: 0.7rem;
+}
+
+.report-kpi strong {
+  display: block;
+  font-size: 1.15rem;
+}
+
+.report-kpi span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.8rem 0;
+  font-size: 0.92rem;
+}
+
+.report-table caption {
+  text-align: left;
+  font-weight: 650;
+  margin-bottom: 0.4rem;
+}
+
+.report-table th,
+.report-table td {
+  text-align: left;
+  padding: 0.35rem 0.4rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.report-prompt {
+  display: grid;
+  gap: 0.7rem;
+  margin: 1.2rem 0;
+}
+
+.report-prompt textarea {
+  display: block;
+  width: 100%;
+  margin-top: 0.35rem;
+  min-height: 5rem;
+}
+
 @media (max-width: 900px) {
   .content:has(.chat-app) {
     padding: 0;

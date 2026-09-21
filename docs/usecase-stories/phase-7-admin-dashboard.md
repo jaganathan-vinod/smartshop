@@ -263,12 +263,13 @@ This is **not** the customer shopping assistant. It does not use AgentCore Runti
 
 ---
 
-## Build notes (implementation later)
+## Build notes
 
-This branch is **documentation only**. Do not add SDK orchestration, metrics routes, or `/admin/reports` UI until implementation is requested.
+Implementation on branch `dashboard` (docs + first slice):
 
-Suggested later layout (not created yet):
+- `services/api/src/admin/metrics/` — read-only metrics
+- `services/api/src/admin/reports/` — jobs, Cursor cloud create/resume/poll, approve publishes spec
+- `web/src/pages/AdminReportsPage.tsx` — prompt, poll, live metrics preview, Refine / Approve
+- Generated allowlist: `web/src/admin/reports/generated/`
 
-- `services/api/src/admin/reports/` — jobs + metrics
-- `web/src/pages/AdminReportsPage.tsx` — prompt, status, preview iframe, Refine / Approve
-- Generated output only under `web/src/admin/reports/generated/`
+Approve v1 writes the widget spec to DynamoDB `published`. Full CI/CDK promotion of generated React is a later slice. The Cursor agent still must not deploy AWS.
