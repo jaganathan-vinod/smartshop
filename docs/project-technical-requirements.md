@@ -316,6 +316,15 @@ All routes: Cognito JWT + group `admin`. Same `/{proxy+}` JWT authorizer as othe
 
 Widgets in generated dashboards **must** call these (or a typed client). No writes. Unknown KPIs are omitted or returned as `available: false`.
 
+### 5.10 Dashboard v2
+
+Specified in [dashboard-v2-design.md](dashboard-v2-design.md). Additive to §5.9.
+
+- Page `/admin/reports/v2`. Routes `/v1/admin/reports/v2/*`. Admin JWT.
+- Cloud agent clones the repo and returns an HTML template. `autoCreatePR: false`. No edits, commits, or pull requests. Lambda starts the run and returns; it does not wait.
+- Template is stored on the job and published to `jobId = published-html`. It must not write `published` or `previewSpec`.
+- The SPA fills placeholders from §5.9 metrics and renders a sandboxed iframe. The template contains no JavaScript. CORS is unchanged.
+
 ## 6. Frontend surface
 
 | Route | Purpose |
@@ -331,6 +340,7 @@ Widgets in generated dashboards **must** call these (or a typed client). No writ
 | `/orders/:id` | Order detail |
 | `/chat` or drawer | Assistant: text, image attach, voice (replace the Phase 4 stub only) |
 | `/admin/reports` | Admin only: prompt, preview iframe, Refine, Approve (Phase 7) |
+| `/admin/reports/v2` | Admin only: HTML template prompt, sandboxed preview, Refine, Approve ([dashboard-v2-design.md](dashboard-v2-design.md)) |
 
 Checkout must show: lines, subtotal, premium discount (or “not applied”), delivery choice, delivery fee, tax, **total**, and a **Place order** control that stays disabled until the customer explicitly confirms (checkbox or equivalent).
 

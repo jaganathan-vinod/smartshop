@@ -1,6 +1,7 @@
 import type {
   CartLine,
   DeliveryMethod,
+  HtmlReportJob,
   ListProductsQuery,
   MeResponse,
   MetricsSummary,
@@ -180,4 +181,39 @@ export function approveReportJob(jobId: string): Promise<ReportJob> {
 
 export function getPublishedReport(): Promise<ReportJob> {
   return request("/v1/admin/reports/published");
+}
+
+export function createHtmlReportJob(
+  prompt: string,
+  windowDays: 7 | 30,
+): Promise<HtmlReportJob> {
+  return request("/v1/admin/reports/v2/jobs", {
+    method: "POST",
+    body: JSON.stringify({ prompt, windowDays }),
+  });
+}
+
+export function getHtmlReportJob(jobId: string): Promise<HtmlReportJob> {
+  return request(`/v1/admin/reports/v2/jobs/${encodeURIComponent(jobId)}`);
+}
+
+export function refineHtmlReportJob(
+  jobId: string,
+  prompt: string,
+  windowDays: 7 | 30,
+): Promise<HtmlReportJob> {
+  return request(`/v1/admin/reports/v2/jobs/${encodeURIComponent(jobId)}/messages`, {
+    method: "POST",
+    body: JSON.stringify({ prompt, windowDays }),
+  });
+}
+
+export function approveHtmlReportJob(jobId: string): Promise<HtmlReportJob> {
+  return request(`/v1/admin/reports/v2/jobs/${encodeURIComponent(jobId)}/approve`, {
+    method: "POST",
+  });
+}
+
+export function getPublishedHtmlReport(): Promise<HtmlReportJob> {
+  return request("/v1/admin/reports/v2/published");
 }

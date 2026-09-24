@@ -29,7 +29,7 @@ export function cursorDashboardConfigured(): boolean {
   return Boolean(dashboardApiKey()) || process.env.CURSOR_DASHBOARD_STUB === "1";
 }
 
-function repoUrl(): string {
+export function cursorCloudRepoUrl(): string {
   return process.env.CURSOR_CLOUD_REPO?.trim() || "https://github.com/jaganathan-vinod/smartshop";
 }
 
@@ -57,7 +57,7 @@ Admin request:
 ${userPrompt}`;
 }
 
-async function cursorFetch(path: string, init: RequestInit): Promise<unknown> {
+export async function cursorFetch(path: string, init: RequestInit): Promise<unknown> {
   const apiKey = dashboardApiKey();
   if (!apiKey) {
     throw new CursorCloudError("Cursor dashboard API key is not configured", 503, "CURSOR_NOT_CONFIGURED");
@@ -93,7 +93,7 @@ export async function startDashboardAgent(
     body: JSON.stringify({
       prompt: { text: dashboardBrief(prompt) },
       name: "SmartShop dashboard",
-      repos: [{ url: repoUrl(), startingRef: startingRef() }],
+      repos: [{ url: cursorCloudRepoUrl(), startingRef: startingRef() }],
       autoCreatePR: false,
       skipReviewerRequest: true,
     }),

@@ -5,6 +5,7 @@ import { ChatProvider } from "./chat";
 import { Layout } from "./Layout";
 import { Protected } from "./Protected";
 import { AdminReportsPage } from "./pages/AdminReportsPage";
+import { AdminReportsV2Page } from "./pages/AdminReportsV2Page";
 import { CartPage } from "./pages/CartPage";
 import { CategoryPage } from "./pages/CategoryPage";
 import { ChatPage } from "./pages/ChatPage";
@@ -39,6 +40,7 @@ export function App() {
                 <Route path="/chat" element={<ChatPage />} />
                 <Route element={<AdminProtected />}>
                   <Route path="/admin/reports" element={<AdminReportsPage />} />
+                  <Route path="/admin/reports/v2" element={<AdminReportsV2Page />} />
                 </Route>
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />

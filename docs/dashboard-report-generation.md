@@ -302,6 +302,8 @@ The Cursor key must never appear in the SPA, `config.json`, generated dashboard 
 
 ## Related documentation
 
+Dashboard v2 is a separate design (HTML template, no git edits). It does not change this flow. See [dashboard-v2-design.md](dashboard-v2-design.md).
+
 - [Phase 7 — Admin dashboard builder](usecase-stories/phase-7-admin-dashboard.md)
 - [Runbook — Phase 7 dashboard builder](runbook.md#phase-7-dashboard-builder)
 - [Project technical requirements](project-technical-requirements.md)

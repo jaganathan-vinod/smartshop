@@ -28,8 +28,11 @@ smartshop/
 │   ├── project-technical-requirements.md
 │   ├── runbook.md
 │   ├── folder-structure.md
+│   ├── dashboard-report-generation.md
+│   ├── dashboard-v2-design.md
 │   └── usecase-stories/
 │       ├── README.md
+│       ├── dashboard-v2.md
 │       └── phase-0 … phase-7 .md
 ├── scripts/
 │   ├── seed.ts

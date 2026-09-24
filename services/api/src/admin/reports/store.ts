@@ -42,6 +42,9 @@ export async function getReportJob(jobId: string): Promise<ReportJob | null> {
   if (!result.Item) {
     return null;
   }
+  if (result.Item.kind === "html-v2") {
+    return null;
+  }
   const parsed = reportJobSchema.safeParse(result.Item);
   return parsed.success ? parsed.data : null;
 }

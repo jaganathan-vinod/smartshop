@@ -1442,6 +1442,36 @@ button.chat-send {
   min-height: 5rem;
 }
 
+.report-v2-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.8rem 0;
+}
+
+.report-v2-chip {
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: var(--mint);
+  color: var(--ink);
+  font-size: 0.78rem;
+}
+
+.report-v2-window {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.8rem;
+}
+
+.report-v2-frame {
+  width: 100%;
+  min-height: 28rem;
+  margin: 1rem 0 1.4rem;
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  background: #fff;
+}
+
 .pulse-board {
   margin: 1.2rem 0 1.6rem;
   padding: 1.2rem 1.3rem 1.4rem;

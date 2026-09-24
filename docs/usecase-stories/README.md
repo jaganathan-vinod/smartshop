@@ -12,6 +12,7 @@ Each story uses: ID, title, actor, story, preconditions, main flow, acceptance c
 | 5 Assistant (AgentCore; text, voice, image) | [phase-5-assistant.md](phase-5-assistant.md) |
 | 6 Hardening | [phase-6-hardening.md](phase-6-hardening.md) |
 | 7 Admin dashboard builder (Cursor SDK) | [phase-7-admin-dashboard.md](phase-7-admin-dashboard.md) |
+| Dashboard v2 | [dashboard-v2.md](dashboard-v2.md) |
 
 Business rules: [../project-business-requirements.md](../project-business-requirements.md)  
 Technical design: [../project-technical-requirements.md](../project-technical-requirements.md)
