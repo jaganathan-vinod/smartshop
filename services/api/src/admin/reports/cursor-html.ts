@@ -9,6 +9,16 @@ export type HtmlRunSnapshot = {
 
 const STUB_TEMPLATE = `<section><h1>Stub report</h1><p>{{summary.gmvCents}}</p><ul>{{#each products}}<li>{{name}} · {{gmvCents}}</li>{{/each}}</ul></section>`;
 
+const CURSOR_AGENT_URL = /^https:\/\/([a-z0-9-]+\.)?cursor\.com\//i;
+
+export function cursorAgentUrl(agentId: string, reported?: string): string {
+  const trimmed = reported?.trim();
+  if (trimmed && CURSOR_AGENT_URL.test(trimmed)) {
+    return trimmed;
+  }
+  return `https://cursor.com/agents/${encodeURIComponent(agentId)}`;
+}
+
 function htmlStartingRef(): string {
   return process.env.CURSOR_CLOUD_HTML_REF?.trim() || "dashboards-v2";
 }
@@ -39,9 +49,13 @@ ${userPrompt}`;
 
 export async function startHtmlDashboardAgent(
   prompt: string,
-): Promise<{ agentId: string; runId: string }> {
+): Promise<{ agentId: string; runId: string; agentUrl: string }> {
   if (process.env.CURSOR_DASHBOARD_STUB === "1") {
-    return { agentId: "bc-stub-html", runId: "run-stub-html-1" };
+    return {
+      agentId: "bc-stub-html",
+      runId: "run-stub-html-1",
+      agentUrl: cursorAgentUrl("bc-stub-html"),
+    };
   }
   const body = (await cursorFetch("/v1/agents", {
     method: "POST",
@@ -53,7 +67,7 @@ export async function startHtmlDashboardAgent(
       skipReviewerRequest: true,
     }),
   })) as {
-    agent?: { id?: string; latestRunId?: string };
+    agent?: { id?: string; url?: string; latestRunId?: string };
     run?: { id?: string };
   };
   const agentId = body.agent?.id;
@@ -61,7 +75,7 @@ export async function startHtmlDashboardAgent(
   if (!agentId || !runId) {
     throw new CursorCloudError("Cursor create did not return agent and run ids", 502, "CURSOR_AGENT_ERROR");
   }
-  return { agentId, runId };
+  return { agentId, runId, agentUrl: cursorAgentUrl(agentId, body.agent?.url) };
 }
 
 export async function resumeHtmlDashboardAgent(

@@ -1472,6 +1472,10 @@ button.chat-send {
   background: #fff;
 }
 
+.report-v2-agent {
+  overflow-wrap: anywhere;
+}
+
 .pulse-board {
   margin: 1.2rem 0 1.6rem;
   padding: 1.2rem 1.3rem 1.4rem;

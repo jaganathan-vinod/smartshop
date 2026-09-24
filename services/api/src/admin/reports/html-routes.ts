@@ -12,7 +12,7 @@ import { jsonError, zodError } from "../../http.js";
 import { logJson } from "../../log.js";
 import { denyUnlessAdmin } from "../guard.js";
 import { CursorCloudError, cursorDashboardConfigured } from "./cursor-cloud.js";
-import { resumeHtmlDashboardAgent, startHtmlDashboardAgent } from "./cursor-html.js";
+import { cursorAgentUrl, resumeHtmlDashboardAgent, startHtmlDashboardAgent } from "./cursor-html.js";
 import {
   createHtmlRunningJob,
   getHtmlReportJob,
@@ -30,16 +30,19 @@ function cursorError(c: Parameters<typeof jsonError>[0], error: unknown) {
 }
 
 function toClient(job: HtmlReportJob): HtmlReportJob {
-  switch (job.status) {
+  const withUrl: HtmlReportJob = job.agentId
+    ? { ...job, agentUrl: job.agentUrl ?? cursorAgentUrl(job.agentId) }
+    : job;
+  switch (withUrl.status) {
     case "preview_ready":
     case "approved":
     case "published":
-      return job;
+      return withUrl;
     case "running":
     case "error":
-      return { ...job, templateHtml: undefined };
+      return { ...withUrl, templateHtml: undefined };
     default: {
-      const _never: never = job.status;
+      const _never: never = withUrl.status;
       return _never;
     }
   }
@@ -89,6 +92,7 @@ export function registerAdminHtmlReportRoutes(app: Hono): void {
         windowDays: body.windowDays,
         agentId: started.agentId,
         runId: started.runId,
+        agentUrl: started.agentUrl,
       });
       return c.json(toClient(job), 201);
     } catch (error) {

@@ -249,6 +249,14 @@ export function AdminReportsV2Page() {
           </button>
         </form>
       ) : null}
+      {job?.agentUrl ? (
+        <p className="report-v2-agent muted">
+          Cloud agent{" "}
+          <a href={job.agentUrl} target="_blank" rel="noreferrer">
+            {job.agentUrl}
+          </a>
+        </p>
+      ) : null}
     </section>
   );
 }

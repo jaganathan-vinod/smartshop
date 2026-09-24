@@ -32,6 +32,7 @@ export const htmlReportJobSchema = z.object({
   createdBy: z.string().min(1),
   agentId: z.string().min(1).optional(),
   runId: z.string().min(1).optional(),
+  agentUrl: z.string().url().max(500).optional(),
   windowDays: htmlReportWindowDaysSchema,
   templateHtml: z.string().max(HTML_TEMPLATE_MAX_BYTES).optional(),
   errorMessage: z.string().max(2000).optional(),

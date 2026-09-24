@@ -51,6 +51,7 @@ export async function createHtmlRunningJob(input: {
   windowDays: HtmlReportWindowDays;
   agentId: string;
   runId: string;
+  agentUrl: string;
 }): Promise<HtmlReportJob> {
   const timestamp = nowIso();
   return putHtmlReportJob({
@@ -61,6 +62,7 @@ export async function createHtmlRunningJob(input: {
     createdBy: input.createdBy,
     agentId: input.agentId,
     runId: input.runId,
+    agentUrl: input.agentUrl,
     windowDays: input.windowDays,
     createdAt: timestamp,
     updatedAt: timestamp,
