@@ -1,10 +1,10 @@
 {
-  "title": "Weekly executive",
+  "title": "Monthly executive",
   "kpis": ["gmv", "orderCount", "aov", "targetPace", "stockouts"],
-  "charts": ["gmvByDay", "topProducts", "deliveryMix", "premium"],
+  "charts": ["gmvByDay", "topProducts"],
   "unavailable": ["viewToOrder"],
   "gmvTargetCents": 1200000,
-  "layout": "executive",
+  "layout": "pulse",
   "theme": "store",
-  "windowDays": 7
+  "windowDays": 30
 }

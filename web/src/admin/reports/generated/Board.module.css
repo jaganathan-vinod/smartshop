@@ -1,0 +1,227 @@
+.board {
+  --board-bg: #f6f3ec;
+  --board-ink: #1c2a24;
+  --board-muted: #5c6d66;
+  --board-card: #fffef9;
+  --board-line: #d5ddd7;
+  --board-accent: #2f6f5e;
+  --board-accent-soft: #e4f1eb;
+  --board-bar: #3d9b80;
+  --board-chip: #9a4a3c;
+  --board-chip-bg: #f8ece8;
+  margin: 1.2rem 0 1.6rem;
+  padding: 1.25rem 1.35rem 1.45rem;
+  border-radius: 1.05rem;
+  background: var(--board-bg);
+  color: var(--board-ink);
+  border: 1px solid var(--board-line);
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+}
+
+.navy {
+  --board-bg: #0b1c2c;
+  --board-ink: #e8f4ef;
+  --board-muted: #9bb8b0;
+  --board-card: #123044;
+  --board-line: #1c3a4d;
+  --board-accent: #c9a227;
+  --board-accent-soft: #1a3344;
+  --board-bar: #c9a227;
+  --board-chip: #f0c3b8;
+  --board-chip-bg: #2a1d1c;
+}
+
+.hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 1.2rem;
+  align-items: center;
+  margin-bottom: 1.05rem;
+}
+
+.eyebrow {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--board-muted);
+}
+
+.title {
+  margin: 0.2rem 0 0.4rem;
+  font-size: 1.55rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.gmv {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--board-ink);
+}
+
+.ring {
+  margin: 0;
+  position: relative;
+  width: 7.4rem;
+  flex: 0 0 7.4rem;
+}
+
+.ring svg {
+  display: block;
+  transform: rotate(-90deg);
+}
+
+.ringCaption {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  text-align: center;
+}
+
+.ringCaption strong {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 1.05rem;
+}
+
+.ringCaption span {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.7rem;
+  color: var(--board-muted);
+}
+
+.rail {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.6rem, 1fr));
+  gap: 0.7rem;
+  margin-bottom: 1rem;
+}
+
+.kpi {
+  padding: 0.7rem 0.8rem;
+  border-radius: 0.7rem;
+  background: var(--board-card);
+  border: 1px solid var(--board-line);
+}
+
+.kpi strong {
+  display: block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 1.15rem;
+}
+
+.kpi span {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.75rem;
+  color: var(--board-muted);
+}
+
+.section {
+  margin-top: 0.95rem;
+}
+
+.section h3 {
+  margin: 0 0 0.45rem;
+  font-size: 0.95rem;
+}
+
+.muted {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.88rem;
+  color: var(--board-muted);
+}
+
+.horizon {
+  list-style: none;
+  display: flex;
+  align-items: flex-end;
+  gap: 0.16rem;
+  height: 5.2rem;
+  margin: 0;
+  padding: 0.15rem 0 0;
+}
+
+.horizon li {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  height: 100%;
+}
+
+.bar {
+  display: block;
+  width: 100%;
+  max-width: 0.72rem;
+  background: var(--board-bar);
+  border-radius: 0.16rem 0.16rem 0 0;
+}
+
+.lanes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.lanes li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.15rem 0.8rem;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+
+.lanes b {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 650;
+}
+
+.laneFill {
+  display: block;
+  grid-column: 1 / -1;
+  height: 0.38rem;
+  background: var(--board-accent-soft);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.laneFill i {
+  display: block;
+  height: 100%;
+  background: var(--board-bar);
+  border-radius: 99px;
+}
+
+.chips {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+}
+
+.chips li {
+  padding: 0.28rem 0.6rem;
+  border-radius: 99px;
+  border: 1px solid var(--board-chip);
+  background: var(--board-chip-bg);
+  color: var(--board-chip);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.8rem;
+}
+
+@media (max-width: 640px) {
+  .hero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
