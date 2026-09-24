@@ -88,7 +88,7 @@ Approve stores the widget spec as the live layout (`jobId=published`). It does n
 
 Implemented. Spec: [dashboard-v2-design.md](dashboard-v2-design.md). Page: `/admin/reports/v2`.
 
-It reuses the Phase 7 Cursor key and repo URL. The v2 clone starts at `CURSOR_CLOUD_HTML_REF` (default `dashboards-v2`) and does not change the Phase 7 default of `main`. Approve writes `jobId=published-html` and must not replace `published`. A cloud run that opens a branch or pull request is a failed v2 job.
+It reuses the Phase 7 Cursor key and repo URL. The v2 clone starts at `CURSOR_CLOUD_HTML_REF` (default `dashboards-v2`) and does not change the Phase 7 default of `main`. Approve writes `jobId=published-html` and must not replace `published`. A cloud run that opens a pull request is a failed v2 job. A branch name on the run payload is the temporary clone.
 
 ---
 

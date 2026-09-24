@@ -20,8 +20,13 @@ describe("html report template", () => {
     assert.equal("error" in two && two.error.includes("more than one"), true);
   });
 
-  it("rejects a run that reports a branch or pull request", () => {
-    assert.equal(cloudRunTouchedGit({ branches: [{ branch: "cursor/report" }] }), true);
+  it("accepts a clone branch name and rejects a pull request", () => {
+    assert.equal(cloudRunTouchedGit({ branches: [{ branch: "dashboards-v2" }] }), false);
+    const withBranch = acceptHtmlReply({
+      resultText: `\`\`\`html\n${SAMPLE}\n\`\`\``,
+      git: { branches: [{ branch: "dashboards-v2" }] },
+    });
+    assert.deepEqual(withBranch, { html: SAMPLE });
     const accepted = acceptHtmlReply({
       resultText: `\`\`\`html\n${SAMPLE}\n\`\`\``,
       git: { branches: [{ prUrl: "https://github.com/example/pull/1" }] },

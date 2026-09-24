@@ -78,7 +78,7 @@ This is not the Phase 7 spec dashboard and not the shopping assistant.
 
 1. SPA polls `GET /v1/admin/reports/v2/jobs/{jobId}`.
 2. While the run is unfinished, the page keeps the plain metrics layout.
-3. When the run finishes, Lambda reads the reply, rejects it if Cursor reports a branch or pull request, extracts one HTML document, strips script and event handlers, and stores `templateHtml` with status `preview_ready`.
+3. When the run finishes, Lambda reads the reply, rejects it if Cursor opened a pull request, extracts one HTML document, strips script and event handlers, and stores `templateHtml` with status `preview_ready`.
 4. SPA loads the template and replaces placeholders from a fresh metrics read for the selected window.
 5. The filled document is shown in a sandboxed iframe (`srcdoc`, no scripts, no same-origin).
 
@@ -187,13 +187,13 @@ This is not the Phase 7 spec dashboard and not the shopping assistant.
 
 1. Cursor clones `CURSOR_CLOUD_REPO` at `CURSOR_CLOUD_REF` onto its VM.
 2. The agent replies with one HTML template.
-3. Lambda reads the run. If the payload includes a branch or pull request URL, the job becomes `error` and `templateHtml` is not stored.
+3. Lambda reads the run. If the payload includes a pull request URL, the job becomes `error` and `templateHtml` is not stored. A branch name without a pull request is the cloud clone.
 4. The VM clone is discarded. SmartShop does not pull, merge, or deploy it.
 
 **Acceptance criteria**
 
 - A successful v2 job creates no commit and no pull request on `jaganathan-vinod/smartshop`.
-- A run that reports git output does not become `preview_ready`.
+- A run that opens a pull request does not become `preview_ready`.
 - `web/src/admin/reports/generated/` in git is unchanged by the run.
 
 **APIs / screens**

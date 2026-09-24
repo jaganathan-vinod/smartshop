@@ -26,7 +26,7 @@ This is separate from the Phase 7 dashboard. Phase 7 remains `/admin/reports`, a
 | SDK package | `@cursor/sdk` stays in dev and CI scripts. It is not added to the Lambda bundle. The package ships a native bridge, and this function cannot wait on a cloud run |
 | One-shot | Do not use `Agent.prompt`. Refine must keep the same `agentId` |
 | Pull requests | `autoCreatePR: false`, `skipReviewerRequest: true` |
-| Repo writes | Prompt forbids edits, commits, and pushes. A finished run that still reports a branch or pull request fails the job |
+| Repo writes | Prompt forbids edits, commits, and pushes. A finished run that opens a pull request fails the job. A branch name on the run is the temporary clone and does not fail it |
 | Model output | One HTML document: inline CSS and inline SVG. Placeholders for metrics. No JavaScript |
 | Where the template lives | DynamoDB job row. Approve copies it to `jobId = published-html` |
 | Who draws numbers | The admin page’s own JavaScript. It loads metrics, fills placeholders, and sets a sandboxed iframe |
@@ -73,7 +73,7 @@ sequenceDiagram
   end
 
   Cursor-->>Lambda: Final text with one HTML template
-  Lambda->>Lambda: Reject when a branch or PR is present
+  Lambda->>Lambda: Reject when a pull request is present
   Lambda->>Lambda: Extract HTML, strip script and handlers
   Lambda->>DDB: templateHtml, status preview_ready
   SPA->>Lambda: GET preview
@@ -220,7 +220,7 @@ Statuses: `running`, `preview_ready`, `error`, `approved`. The published row’s
 | Cursor key missing | 503 `CURSOR_NOT_CONFIGURED` |
 | Refine or approve while `running` | 409 `JOB_RUNNING` |
 | Approve when status is not `preview_ready` | 409 `PREVIEW_REQUIRED` |
-| Run failed, cancelled, or finished with a branch or PR | Job `error`. Previous `published-html` stays |
+| Run failed, cancelled, or finished with a pull request | Job `error`. Previous `published-html` stays |
 | Reply has no single HTML document | Job `error` |
 | Template still contains script or handlers after the strip, or exceeds 300 KB | Job `error` |
 

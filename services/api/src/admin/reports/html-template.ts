@@ -29,7 +29,7 @@ export type HtmlGitInfo = {
 };
 
 export function cloudRunTouchedGit(git: HtmlGitInfo | undefined): boolean {
-  return (git?.branches ?? []).some((branch) => Boolean(branch.branch || branch.prUrl));
+  return (git?.branches ?? []).some((branch) => Boolean(branch.prUrl));
 }
 
 export function acceptHtmlReply(input: {
