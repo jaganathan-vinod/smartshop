@@ -4,7 +4,7 @@
 
 This is **not** the customer shopping assistant. It does not use AgentCore Runtime, Nova, or `POST /v1/internal/assistant/tools`.
 
-**Related:** [project-technical-requirements.md](../project-technical-requirements.md) §2.5, §5.9, §6
+**Related:** [dashboard-report-generation.md](../dashboard-report-generation.md) for the end-to-end runtime flow; [project-technical-requirements.md](../project-technical-requirements.md) §2.5, §5.9, §6
 
 ---
 
