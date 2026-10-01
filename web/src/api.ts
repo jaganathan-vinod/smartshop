@@ -9,6 +9,7 @@ import type {
   Product,
   QuoteResponse,
   ReportJob,
+  RouteMapResponse,
 } from "@smartshop/shared";
 import { productsListPath } from "./catalog";
 import { loadConfig } from "./config";
@@ -216,4 +217,8 @@ export function approveHtmlReportJob(jobId: string): Promise<HtmlReportJob> {
 
 export function getPublishedHtmlReport(): Promise<HtmlReportJob> {
   return request("/v1/admin/reports/v2/published");
+}
+
+export function listRouteMap(): Promise<RouteMapResponse> {
+  return request("/v1/admin/routes");
 }

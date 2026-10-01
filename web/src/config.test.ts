@@ -8,6 +8,7 @@ describe("assistantInvokeUrl", () => {
     userPoolId: "pool",
     userPoolClientId: "client",
     region: "ap-southeast-1",
+    mapsBrowserKey: "",
   };
 
   it("keeps required config keys working without a runtime arn", () => {

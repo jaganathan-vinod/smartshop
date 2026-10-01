@@ -5,6 +5,7 @@ export type AppConfig = {
   region: string;
   assistantRuntimeArn?: string;
   assistantRuntimeUrl?: string;
+  mapsBrowserKey: string;
 };
 
 let cached: Promise<AppConfig> | undefined;
@@ -45,6 +46,7 @@ async function readConfig(): Promise<AppConfig> {
       region,
       assistantRuntimeUrl: assistantRuntimeUrl || undefined,
       assistantRuntimeArn: assistantRuntimeArn || undefined,
+      mapsBrowserKey: import.meta.env.VITE_MAPS_BROWSER_KEY ?? "",
     };
   }
 
@@ -66,5 +68,6 @@ async function readConfig(): Promise<AppConfig> {
       typeof json.assistantRuntimeUrl === "string" && json.assistantRuntimeUrl
         ? json.assistantRuntimeUrl
         : undefined,
+    mapsBrowserKey: typeof json.mapsBrowserKey === "string" ? json.mapsBrowserKey : "",
   };
 }

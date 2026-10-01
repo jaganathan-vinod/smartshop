@@ -1689,3 +1689,15 @@ button.chat-send {
     padding-right: 1.1rem;
   }
 }
+
+.content:has(.route-map-page) {
+  max-width: none;
+}
+
+.route-map {
+  width: 100%;
+  height: 70vh;
+  border: 1px solid var(--line);
+  border-radius: 0.8rem;
+  overflow: hidden;
+}

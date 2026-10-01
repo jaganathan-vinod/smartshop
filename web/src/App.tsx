@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AdminProtected } from "./AdminProtected";
 import { AuthProvider } from "./auth";
@@ -17,6 +18,10 @@ import { OrderDetailPage } from "./pages/OrderDetailPage";
 import { OrdersPage } from "./pages/OrdersPage";
 import { ProductPage } from "./pages/ProductPage";
 import { SignupPage } from "./pages/SignupPage";
+
+const AdminMapPage = lazy(() =>
+  import("./pages/AdminMapPage").then((module) => ({ default: module.AdminMapPage })),
+);
 
 export function App() {
   return (
@@ -41,6 +46,14 @@ export function App() {
                 <Route element={<AdminProtected />}>
                   <Route path="/admin/reports" element={<AdminReportsPage />} />
                   <Route path="/admin/reports/v2" element={<AdminReportsV2Page />} />
+                  <Route
+                    path="/admin/map"
+                    element={
+                      <Suspense fallback={<p className="lede">Loading map…</p>}>
+                        <AdminMapPage />
+                      </Suspense>
+                    }
+                  />
                 </Route>
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />

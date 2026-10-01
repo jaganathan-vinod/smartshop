@@ -7,6 +7,7 @@ interface ImportMetaEnv {
   readonly VITE_USER_POOL_REGION: string;
   readonly VITE_ASSISTANT_RUNTIME_URL?: string;
   readonly VITE_ASSISTANT_RUNTIME_ARN?: string;
+  readonly VITE_MAPS_BROWSER_KEY?: string;
 }
 
 interface ImportMeta {

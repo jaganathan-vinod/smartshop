@@ -138,7 +138,7 @@ export class SmartShopStack extends Stack {
       runtime: lambda.Runtime.NODEJS_22_X,
       architecture: lambda.Architecture.ARM_64,
       memorySize: 512,
-      timeout: Duration.seconds(30),
+      timeout: Duration.seconds(60),
       logGroup: apiLogGroup,
       depsLockFilePath: path.join(repoRoot, "package-lock.json"),
       projectRoot: repoRoot,
@@ -159,6 +159,9 @@ export class SmartShopStack extends Stack {
         CURSOR_DASHBOARD_API_KEY: process.env.CURSOR_DASHBOARD_API_KEY ?? "",
         CURSOR_CLOUD_REPO: process.env.CURSOR_CLOUD_REPO ?? "https://github.com/jaganathan-vinod/smartshop",
         CURSOR_CLOUD_REF: process.env.CURSOR_CLOUD_REF ?? "main",
+        BQ_PROJECT: process.env.BQ_PROJECT ?? "project-fd286af4-b340-4967-86b",
+        BQ_DATASET: process.env.BQ_DATASET ?? "routes",
+        BQ_READER_SECRET_ID: "smartshop/bq-reader",
       },
     });
 
@@ -173,6 +176,14 @@ export class SmartShopStack extends Stack {
       new iam.PolicyStatement({
         actions: ["cognito-idp:AdminListGroupsForUser"],
         resources: [userPool.userPoolArn],
+      }),
+    );
+    apiFn.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["secretsmanager:GetSecretValue"],
+        resources: [
+          `arn:aws:secretsmanager:${this.region}:${this.account}:secret:smartshop/bq-reader*`,
+        ],
       }),
     );
 
@@ -409,6 +420,7 @@ export class SmartShopStack extends Stack {
           userPoolClientId: userPoolClient.userPoolClientId,
           region: this.region,
           assistantRuntimeArn: assistantRuntime.agentRuntimeArn,
+          mapsBrowserKey: process.env.VITE_MAPS_BROWSER_KEY ?? "",
         }),
       ],
       destinationBucket: webBucket,
