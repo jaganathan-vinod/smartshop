@@ -29,7 +29,7 @@ export type PlanChoice = z.infer<typeof planChoiceSchema>;
 
 export const planApiCallSchema = z.object({
   label: z.string().min(1).max(200),
-  api: z.enum(["GEOCODE", "PLACES", "ROUTES"]),
+  api: z.enum(["GEOCODE", "PLACES", "ROUTES", "IMAGEN"]),
   method: z.enum(["GET", "POST"]),
   url: z.string().min(1).max(2000),
   status: z.number().int().nonnegative(),
@@ -47,6 +47,7 @@ export const agentTurnSchema = z.object({
   routeGeojson: z.string().optional(),
   choices: z.array(planChoiceSchema).optional(),
   trace: z.array(planApiCallSchema).max(40).optional(),
+  assetId: z.string().min(8).max(80).regex(/^[A-Za-z0-9_-]+$/).optional(),
 });
 
 export type AgentTurn = z.infer<typeof agentTurnSchema>;
@@ -58,6 +59,7 @@ export const agentSessionMessageSchema = z.object({
   routeGeojson: z.string().optional(),
   choices: z.array(planChoiceSchema).optional(),
   trace: z.array(planApiCallSchema).max(40).optional(),
+  assetId: z.string().min(8).max(80).regex(/^[A-Za-z0-9_-]+$/).optional(),
 });
 
 export type AgentSessionMessage = z.infer<typeof agentSessionMessageSchema>;

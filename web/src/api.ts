@@ -242,6 +242,19 @@ export function sendAgentMessage(sessionId: string, text: string): Promise<Agent
   });
 }
 
+export async function getMarketingAsset(assetId: string): Promise<Blob> {
+  const config = await loadConfig();
+  const headers = await authHeaders();
+  const response = await fetch(
+    `${config.apiUrl}/v1/admin/marketing/assets/${encodeURIComponent(assetId)}`,
+    { headers },
+  );
+  if (!response.ok) {
+    throw new ApiRequestError(response.status, "ASSET_FAILED", "Could not load the marketing image");
+  }
+  return response.blob();
+}
+
 export function getAgentSession(sessionId: string): Promise<AgentSessionDetail> {
   return request(`/v1/admin/agent/sessions/${encodeURIComponent(sessionId)}`);
 }

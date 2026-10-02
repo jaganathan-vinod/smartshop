@@ -68,4 +68,36 @@ describe("admin agent sessions", () => {
       assert.equal(loaded.status, 200);
     });
   });
+
+  it("returns a review image instead of a driving plan", async () => {
+    const hono = new Hono();
+    registerAdminAgentRoutes(hono, {
+      plan: async () => {
+        throw new Error("planning should not run");
+      },
+      image: async () => ({
+        reply: "Image ready for review. Products: Ceramic Mug.",
+        assetId: "asset_testimage01",
+      }),
+    });
+    await runWithClaims({ sub: "admin-1", groups: ["admin"] }, async () => {
+      const created = await hono.request("http://localhost/v1/admin/agent/sessions", {
+        method: "POST",
+      });
+      const session = (await created.json()) as { sessionId: string };
+      const message = await hono.request(
+        `http://localhost/v1/admin/agent/sessions/${session.sessionId}/messages`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: "image of the Ceramic Mug on a wood table" }),
+        },
+      );
+      assert.equal(message.status, 200);
+      const turn = (await message.json()) as { reply: string; assetId?: string; routeGeojson?: string };
+      assert.equal(turn.assetId, "asset_testimage01");
+      assert.match(turn.reply, /Ceramic Mug/);
+      assert.equal(turn.routeGeojson, undefined);
+    });
+  });
 });

@@ -11,6 +11,8 @@ import { currentClaims } from "../../auth.js";
 import { jsonError, zodError } from "../../http.js";
 import { denyUnlessAdmin } from "../guard.js";
 import { planCandidate, type StorePlanResult } from "./plan.js";
+import { isImageRequest } from "../marketing/intent.js";
+import { generateMarketingImage, type MarketingImageResult } from "../marketing/image.js";
 
 type AgentSession = {
   sessionId: string;
@@ -22,10 +24,12 @@ const sessions = new Map<string, AgentSession>();
 
 export type AgentRouteDeps = {
   plan?: (text: string) => Promise<StorePlanResult>;
+  image?: (sessionId: string, text: string) => Promise<MarketingImageResult>;
 };
 
 export function registerAdminAgentRoutes(app: Hono, deps: AgentRouteDeps = {}): void {
   const plan = deps.plan ?? planCandidate;
+  const image = deps.image ?? generateMarketingImage;
 
   app.post("/v1/admin/agent/sessions", async (c) => {
     const denied = await denyUnlessAdmin(c);
@@ -57,24 +61,28 @@ export function registerAdminAgentRoutes(app: Hono, deps: AgentRouteDeps = {}): 
       if (!session || session.userId !== userId) {
         return jsonError(c, 404, "NOT_FOUND", "Session not found");
       }
-      const planned = await plan(body.text);
+      const planned = isImageRequest(body.text) ? undefined : await plan(body.text);
+      const pictured = planned ? undefined : await image(sessionId, body.text);
+      const reply = planned?.reply ?? pictured?.reply ?? "";
       session.messages.push({ role: "user", text: body.text });
       session.messages.push({
         role: "agent",
-        text: planned.reply,
-        planId: planned.planId,
-        routeGeojson: planned.routeGeojson,
-        choices: planned.choices,
-        trace: planned.trace,
+        text: reply,
+        planId: planned?.planId,
+        routeGeojson: planned?.routeGeojson,
+        choices: planned?.choices,
+        trace: planned?.trace ?? pictured?.trace,
+        assetId: pictured?.assetId,
       });
       const turn: AgentTurn = {
         sessionId,
-        reply: planned.reply,
+        reply,
         status: "COMPLETE",
-        planId: planned.planId,
-        routeGeojson: planned.routeGeojson,
-        choices: planned.choices,
-        trace: planned.trace,
+        planId: planned?.planId,
+        routeGeojson: planned?.routeGeojson,
+        choices: planned?.choices,
+        trace: planned?.trace ?? pictured?.trace,
+        assetId: pictured?.assetId,
       };
       return c.json(turn);
     } catch (error) {

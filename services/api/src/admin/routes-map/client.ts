@@ -13,8 +13,7 @@ const BQ_SCOPE = "https://www.googleapis.com/auth/bigquery";
 const QUERY_DEADLINE_MS = 25_000;
 
 let cachedSecret: string | undefined;
-let auth: GoogleAuth | undefined;
-let authEmail: string | undefined;
+const authByScope = new Map<string, GoogleAuth>();
 
 export type BqQueryParameter = {
   name: string;
@@ -33,13 +32,8 @@ export async function runBigQuerySql(
   sql: string,
   parameters: BqQueryParameter[] = [],
 ): Promise<BqQueryResponse> {
-  const raw = await loadServiceAccountJson();
-  if (!raw) {
-    throw new RouteMapNotConfigured();
-  }
-  const credentials = parseServiceAccount(raw);
   const { project } = routeMapConfig();
-  const token = await accessToken(credentials);
+  const token = await googleAccessToken([BQ_SCOPE]);
   const deadline = Date.now() + QUERY_DEADLINE_MS;
   let body = await postQuery(token, project, sql, parameters);
   while (body.jobComplete === false) {
@@ -109,16 +103,22 @@ function parseServiceAccount(raw: string): JWTInput {
   return parsed;
 }
 
-async function accessToken(credentials: JWTInput): Promise<string> {
-  const email = credentials.client_email ?? "";
-  if (!auth || authEmail !== email) {
-    auth = new GoogleAuth({ credentials, scopes: [BQ_SCOPE] });
-    authEmail = email;
+export async function googleAccessToken(scopes: readonly string[]): Promise<string> {
+  const raw = await loadServiceAccountJson();
+  if (!raw) {
+    throw new RouteMapNotConfigured();
   }
-  const client = await auth.getClient();
+  const credentials = parseServiceAccount(raw);
+  const key = scopes.join(" ");
+  let google = authByScope.get(key);
+  if (!google) {
+    google = new GoogleAuth({ credentials, scopes: [...scopes] });
+    authByScope.set(key, google);
+  }
+  const client = await google.getClient();
   const access = await client.getAccessToken();
   if (!access.token) {
-    throw new Error("BigQuery access token was empty");
+    throw new Error("Google access token was empty");
   }
   return access.token;
 }
