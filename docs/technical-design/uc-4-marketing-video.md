@@ -1,5 +1,6 @@
 # UC-4 — Catalogue marketing video
 
+**Status:** designed, not built.  
 **Actor:** Marketing (Cognito group `admin`)  
 **Goal:** In the same admin chat, generate a short marketing video from catalogue products and the operator’s guidance, then hold it for review.
 

@@ -4,7 +4,7 @@ Illustrative metadata for the new tables. Coordinates are longitude then latitud
 
 ## DynamoDB Orders item (express only)
 
-Existing key and price fields stay. Two attributes are added.
+Existing key and price fields stay. Express orders also store `deliveryAddress`, `expressRouteId`, and, when Google was called, `trace`. `trace` is the same call list as a planning turn. The list API omits it. A standard order omits all three.
 
 ```json
 {
@@ -21,7 +21,7 @@ Existing key and price fields stay. Two attributes are added.
 }
 ```
 
-A standard order omits `deliveryAddress` and `expressRouteId`.
+`trace` entries use `api` `GEOCODE` or `ROUTES`. The sample below omits the list. The URL in each entry has no API key.
 
 ## `routes.stores`
 
@@ -207,7 +207,7 @@ Copied from DynamoDB Products. `product_id` stays the catalogue id.
 
 ## `marketing.assets`
 
-Image row after Imagen returns. Video row while Veo is still running, then the same row with `status = REVIEW` and a `gcs_uri`.
+Image row after Gemini returns. The object name ends in `.png`. The bytes may be JPEG; the asset GET sniffs the magic bytes. The video row is the UC-4 shape and is not written yet.
 
 ```json
 [

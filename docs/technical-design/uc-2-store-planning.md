@@ -3,21 +3,21 @@
 **Actor:** Operations (Cognito group `admin`)  
 **Goal:** One admin chat can show current stores and, for a candidate address, nearby competitors and drive times.
 
-Population is out of scope. This chat does not place an order and does not edit the catalogue. The same Vertex Agent Builder agent also serves UC-3 and UC-4. Location turns call the BigQuery data agent as a tool. The map beside the chat draws any lines that tool returns.
+Population is out of scope. This chat does not place an order and does not edit the catalogue. The same Planning page also serves UC-3. UC-4 will use it when that use case is built. Express checkout does not use this chat.
 
 ## Flow
 
-1. The admin opens the operations chat. The SPA calls `POST /v1/admin/agent/sessions` and embeds the reply stream.
-2. A location question is handled by Vertex, which invokes the BigQuery data agent.
-3. The data agent may read `routes.stores`, `routes.express_order_routes`, and `routes.store_plan_results`. It may also ask the route service to geocode a candidate address, call Places for competitors, and call Routes for drive times.
-4. New competitor and drive-time rows are inserted into `routes.store_plan_results`.
-5. The chat reply includes the GeoJSON for the map. The SPA draws it with the Maps JavaScript API.
-
-Express checkout (UC-1) does not use this chat.
+1. The admin opens `/admin/planning`. The SPA calls `POST /v1/admin/agent/sessions`.
+2. A message that matches an image request goes to UC-3. Any other text is a location question.
+3. The planner geocodes the candidate. `GEOCODE_REGION` is sent only when that environment variable is set. Express checkout still defaults the region to `us`.
+4. It reads active `routes.stores`, calls Places `searchNearby` for `grocery_store`, `supermarket`, and `convenience_store` within 3 km (at most 5 places), then calls Routes `computeRoutes` with `TRAFFIC_UNAWARE` from each current store and each competitor to the candidate.
+5. Every successful drive is inserted into `routes.store_plan_results`, including current stores that are far from the candidate.
+6. The reply lists choices: the nearest current store first, then competitors ordered by `durationSeconds`. Other current stores stay in BigQuery and are omitted from the list. Each choice carries one route. `routeGeojson` defaults to the nearest current store. Selecting a competitor replaces the map with that route only.
+7. The page ends with a collapsed trace of the geocode, Places, and Routes calls. The API key is omitted. Polylines in the trace are clipped.
 
 ## DynamoDB
 
-No change. Stores and plan results live in BigQuery. Session state lives in Vertex. Orders are not written.
+No change. Stores and plan results live in BigQuery. The session map is in the Lambda process. Orders are not written.
 
 ## API Gateway
 
@@ -25,9 +25,9 @@ No API Gateway change. Admin paths use the existing JWT `/{proxy+}`. The Lambda 
 
 | Method and path | Role |
 | --- | --- |
-| `POST /v1/admin/agent/sessions` | Starts a Vertex session for this admin. Returns `sessionId`. Shared with UC-3 and UC-4. |
-| `POST /v1/admin/agent/sessions/{sessionId}/messages` | Sends the operator text. Returns the agent reply, optional `routeGeojson`, and optional asset ids from UC-3 or UC-4. |
-| `GET /v1/admin/agent/sessions/{sessionId}` | Polls a turn that is still running. |
+| `POST /v1/admin/agent/sessions` | Starts an in-memory session for this admin. Returns `sessionId`. Shared with UC-3. |
+| `POST /v1/admin/agent/sessions/{sessionId}/messages` | Sends the operator text. A location turn returns `reply`, `choices`, `routeGeojson`, and `trace`. An image turn returns `assetId` from UC-3. |
+| `GET /v1/admin/agent/sessions/{sessionId}` | Returns the messages already stored for that session. Turns finish inside the POST. |
 
 This cut runs the planner inside the API Lambda, using the Maps server key and the BigQuery reader. The session endpoints match the Vertex chat contract so a later Agent Builder session can replace the in-process planner. The browser does not call Places, Routes, or BigQuery.
 
@@ -35,7 +35,7 @@ This cut runs the planner inside the API Lambda, using the Maps server key and t
 
 ## BigQuery
 
-**Read:** `routes.stores` and `routes.express_order_routes` from UC-1. The data agent must not mutate `express_order_routes`.
+**Read:** active rows in `routes.stores`. This planner does not read or write `routes.express_order_routes`.
 
 **New table** `routes.store_plan_results`. One row per competitor or current-store drive-time computed for a candidate.
 
@@ -58,7 +58,9 @@ PARTITION BY DATE(computed_at)
 CLUSTER BY plan_id;
 ```
 
-`subject_kind` is `COMPETITOR` or `CURRENT_STORE`. `route_geography` is the drive line when Routes returned one. The chat map uses `ST_ASGEOJSON(route_geography)`.
+`subject_kind` is `COMPETITOR` or `CURRENT_STORE`. `route_geography` is the drive line when Routes returned one. The chat map uses the GeoJSON already on the chosen `choices` entry. Current-store lines are blue (`#1a73e8`) and competitor lines are red (`#c5221f`). A grey map immediately after a selection is tiles loading.
+
+Places field mask is `places.id,places.displayName,places.location`. Routes and Places request headers recorded in the trace omit `X-Goog-Api-Key`.
 
 **Unchanged:** `routes.od_pairs`, `routes.geocode_cache`, `routes.route_results`.
 

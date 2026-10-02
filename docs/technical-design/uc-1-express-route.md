@@ -9,11 +9,11 @@ Standard delivery does not collect an address and does not call GCP. The express
 
 1. Checkout with `deliveryMethod = EXPRESS` requires `deliveryAddress`.
 2. `POST /v1/orders` still requires `confirm: true`. The Lambda reprices, checks stock, then calls the GCP route service.
-3. The route service geocodes the address, reads `routes.stores`, calls the Routes API once per active store, and keeps the minimum `duration_seconds`.
-4. It inserts one row in `routes.express_order_routes` and returns `route_id`.
-5. The Lambda writes the order, including `deliveryAddress` and `expressRouteId`, decrements stock, and clears the cart.
-6. If geocoding or routing fails, the Lambda creates no order and does not decrement stock.
-7. `GET /v1/orders/{orderId}` returns the snapshot. The order page draws `route_geojson` with the Maps JavaScript API.
+3. The route service geocodes the address with region `us` unless `GEOCODE_REGION` is set, reads active `routes.stores`, and calls Routes once per store with `TRAFFIC_AWARE`. The shortest `duration_seconds` wins.
+4. It inserts one row in `routes.express_order_routes` and returns `route_id` plus the Google call trace.
+5. The Lambda writes the order, including `deliveryAddress`, `expressRouteId`, and `trace`, decrements stock, and clears the cart.
+6. If geocoding or routing fails, the Lambda creates no order and does not decrement stock. Calls already made are returned on the error `details`. Checkout shows them in the same collapsed trace as the order page.
+7. `GET /v1/orders/{orderId}` returns the snapshot and `trace`. The order page draws `route_geojson` with the Maps JavaScript API. `GET /v1/orders` omits `trace`.
 
 The shopping assistant does not collect this address in this cut. Web checkout owns the flow.
 
@@ -25,6 +25,7 @@ The shopping assistant does not collect this address in this cut. Web checkout o
 | --- | --- | --- |
 | `deliveryAddress` | string | EXPRESS only. The address the customer typed. |
 | `expressRouteId` | string | EXPRESS only. Equals `express_order_routes.route_id`. |
+| `trace` | list | EXPRESS only, when Google was called. Omitted on the list API. Orders placed before this attribute have no trace. |
 
 `GET` by `orderId` already exists (`orderId-index`). The page loads the line geometry from the API, which reads BigQuery by `expressRouteId`. The polyline is not copied into DynamoDB.
 
@@ -37,7 +38,7 @@ No API Gateway change. Both calls already fall through `/{proxy+}` with the cust
 | Method and path | Change |
 | --- | --- |
 | `POST /v1/orders` | Body gains `deliveryAddress` (required when `deliveryMethod` is `EXPRESS`, rejected when `STANDARD`). |
-| `GET /v1/orders/{orderId}` | EXPRESS responses add `deliveryAddress`, `expressRouteId`, `storeName`, `distanceMeters`, `durationSeconds`, `routeGeojson`. |
+| `GET /v1/orders/{orderId}` | EXPRESS responses add `deliveryAddress`, `expressRouteId`, `storeName`, `distanceMeters`, `durationSeconds`, `routeGeojson`, and `trace`. |
 | `POST /v1/quotes` | Unchanged. Quotes still do not store an address or a route. |
 | `GET /v1/orders` | List payload stays the summary. The map loads on the detail page. |
 
@@ -95,5 +96,5 @@ CLUSTER BY order_id;
 | EXPRESS without `deliveryAddress` | 400. No order. |
 | STANDARD with `deliveryAddress` | 400. No order. |
 | No active store | 503 `NO_STORE`. No order. |
-| Geocode or Routes error | 502 `ROUTE_FAILED`. No order. Cart and stock unchanged. |
-| BigQuery insert fails after a route was chosen | 502. No order. |
+| Geocode or Routes error | 502 `ROUTE_FAILED`. No order. Cart and stock unchanged. `details` holds the calls when any were made. |
+| BigQuery insert fails after a route was chosen | 502. No order. The calls travel with the error. |
