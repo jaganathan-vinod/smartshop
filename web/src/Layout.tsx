@@ -101,6 +101,7 @@ export function Layout() {
         <div className="header-actions">
           {isAdmin ? <NavLink to="/admin/reports">Reports</NavLink> : null}
           {isAdmin ? <NavLink to="/admin/reports/v2">Report v2</NavLink> : null}
+          {isAdmin ? <NavLink to="/admin/planning">Planning</NavLink> : null}
           {isAdmin ? <NavLink to="/admin/map">Map</NavLink> : null}
           {user ? (
             <button

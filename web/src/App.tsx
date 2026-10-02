@@ -22,6 +22,9 @@ import { SignupPage } from "./pages/SignupPage";
 const AdminMapPage = lazy(() =>
   import("./pages/AdminMapPage").then((module) => ({ default: module.AdminMapPage })),
 );
+const AdminPlanningPage = lazy(() =>
+  import("./pages/AdminPlanningPage").then((module) => ({ default: module.AdminPlanningPage })),
+);
 
 export function App() {
   return (
@@ -46,6 +49,14 @@ export function App() {
                 <Route element={<AdminProtected />}>
                   <Route path="/admin/reports" element={<AdminReportsPage />} />
                   <Route path="/admin/reports/v2" element={<AdminReportsV2Page />} />
+                  <Route
+                    path="/admin/planning"
+                    element={
+                      <Suspense fallback={<p className="lede">Loading planning…</p>}>
+                        <AdminPlanningPage />
+                      </Suspense>
+                    }
+                  />
                   <Route
                     path="/admin/map"
                     element={

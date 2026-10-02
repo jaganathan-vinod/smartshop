@@ -70,7 +70,7 @@ export async function planExpressRoute(input: {
   userId: string;
   deliveryAddress: string;
 }): Promise<PlannedExpressRoute> {
-  const apiKey = await mapsServerKey();
+  const apiKey = await loadMapsServerKey();
   const destination = await geocodeAddress(input.deliveryAddress, apiKey);
   const stores = await listActiveStores();
   if (stores.length === 0) {
@@ -337,7 +337,7 @@ async function driveFromStore(
   };
 }
 
-async function mapsServerKey(): Promise<string> {
+export async function loadMapsServerKey(): Promise<string> {
   const fromEnv = process.env.MAPS_SERVER_API_KEY?.trim();
   if (fromEnv) {
     return fromEnv;

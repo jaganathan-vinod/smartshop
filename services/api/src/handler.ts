@@ -7,6 +7,7 @@ import { registerAdminRoutes } from "./admin/routes.js";
 import { registerAdminMetricsRoutes } from "./admin/metrics/routes.js";
 import { registerAdminHtmlReportRoutes } from "./admin/reports/html-routes.js";
 import { registerAdminReportRoutes } from "./admin/reports/routes.js";
+import { registerAdminAgentRoutes } from "./admin/agent/routes.js";
 import { registerAdminRouteMapRoutes } from "./admin/routes-map/routes.js";
 import { registerAssistantRoutes } from "./assistant/routes.js";
 import { registerAssistantUploadRoutes } from "./assistant/uploads.js";
@@ -50,6 +51,7 @@ registerAdminMetricsRoutes(app);
 registerAdminReportRoutes(app);
 registerAdminHtmlReportRoutes(app);
 registerAdminRouteMapRoutes(app);
+registerAdminAgentRoutes(app);
 registerAssistantRoutes(app);
 registerAssistantUploadRoutes(app);
 

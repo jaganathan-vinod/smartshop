@@ -29,7 +29,7 @@ No API Gateway change. Admin paths use the existing JWT `/{proxy+}`. The Lambda 
 | `POST /v1/admin/agent/sessions/{sessionId}/messages` | Sends the operator text. Returns the agent reply, optional `routeGeojson`, and optional asset ids from UC-3 or UC-4. |
 | `GET /v1/admin/agent/sessions/{sessionId}` | Polls a turn that is still running. |
 
-The browser does not hold a GCP key. The Lambda exchanges the admin JWT for a short-lived Vertex session. Places, Routes, and BigQuery are called from GCP, not from API Gateway.
+This cut runs the planner inside the API Lambda, using the Maps server key and the BigQuery reader. The session endpoints match the Vertex chat contract so a later Agent Builder session can replace the in-process planner. The browser does not call Places, Routes, or BigQuery.
 
 `GET /v1/admin/routes` stays the existing admin map of `route_results`. Store planning does not replace that endpoint.
 

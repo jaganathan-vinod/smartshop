@@ -1690,8 +1690,56 @@ button.chat-send {
   }
 }
 
-.content:has(.route-map-page) {
+.content:has(.route-map-page),
+.content:has(.plan-page) {
   max-width: none;
+}
+
+.plan-page {
+  display: grid;
+  grid-template-columns: minmax(18rem, 28rem) 1fr;
+  gap: 1.25rem;
+  min-height: 70vh;
+}
+
+.plan-chat form {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.plan-chat input {
+  display: block;
+  width: 100%;
+  margin-top: 0.35rem;
+  font: inherit;
+  padding: 0.55rem 0.7rem;
+}
+
+.plan-log {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 0.6rem;
+  margin: 1rem 0;
+}
+
+.plan-log li {
+  padding: 0.7rem 0.8rem;
+  border-radius: 0.7rem;
+  background: var(--paper);
+}
+
+.plan-log li.user {
+  background: transparent;
+  border: 1px solid var(--line);
+}
+
+.plan-map-wrap {
+  min-height: 24rem;
+}
+
+.route-map.plan-map {
+  height: 70vh;
 }
 
 .route-map {

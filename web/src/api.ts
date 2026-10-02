@@ -9,6 +9,8 @@ import type {
   OrderDetail,
   Product,
   QuoteResponse,
+  AgentSessionDetail,
+  AgentTurn,
   ReportJob,
   RouteMapResponse,
 } from "@smartshop/shared";
@@ -227,4 +229,19 @@ export function getPublishedHtmlReport(): Promise<HtmlReportJob> {
 
 export function listRouteMap(): Promise<RouteMapResponse> {
   return request("/v1/admin/routes");
+}
+
+export function createAgentSession(): Promise<{ sessionId: string }> {
+  return request("/v1/admin/agent/sessions", { method: "POST" });
+}
+
+export function sendAgentMessage(sessionId: string, text: string): Promise<AgentTurn> {
+  return request(`/v1/admin/agent/sessions/${encodeURIComponent(sessionId)}/messages`, {
+    method: "POST",
+    body: JSON.stringify({ text }),
+  });
+}
+
+export function getAgentSession(sessionId: string): Promise<AgentSessionDetail> {
+  return request(`/v1/admin/agent/sessions/${encodeURIComponent(sessionId)}`);
 }
