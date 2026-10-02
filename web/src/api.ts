@@ -6,6 +6,7 @@ import type {
   MeResponse,
   MetricsSummary,
   Order,
+  OrderDetail,
   Product,
   QuoteResponse,
   ReportJob,
@@ -124,11 +125,16 @@ export function createQuote(deliveryMethod: DeliveryMethod): Promise<QuoteRespon
 export function createOrder(
   deliveryMethod: DeliveryMethod,
   idempotencyKey: string,
+  deliveryAddress?: string,
 ): Promise<Order> {
   return request("/v1/orders", {
     method: "POST",
     headers: { "Idempotency-Key": idempotencyKey },
-    body: JSON.stringify({ deliveryMethod, confirm: true }),
+    body: JSON.stringify({
+      deliveryMethod,
+      confirm: true,
+      ...(deliveryAddress ? { deliveryAddress } : {}),
+    }),
   });
 }
 
@@ -136,7 +142,7 @@ export function listOrders(): Promise<{ orders: Order[] }> {
   return request("/v1/orders");
 }
 
-export function getOrder(orderId: string): Promise<Order> {
+export function getOrder(orderId: string): Promise<OrderDetail> {
   return request(`/v1/orders/${encodeURIComponent(orderId)}`);
 }
 

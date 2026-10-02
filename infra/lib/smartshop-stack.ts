@@ -162,6 +162,7 @@ export class SmartShopStack extends Stack {
         BQ_PROJECT: process.env.BQ_PROJECT ?? "project-fd286af4-b340-4967-86b",
         BQ_DATASET: process.env.BQ_DATASET ?? "routes",
         BQ_READER_SECRET_ID: "smartshop/bq-reader",
+        MAPS_SERVER_SECRET_ID: "smartshop/maps-server",
       },
     });
 
@@ -183,6 +184,7 @@ export class SmartShopStack extends Stack {
         actions: ["secretsmanager:GetSecretValue"],
         resources: [
           `arn:aws:secretsmanager:${this.region}:${this.account}:secret:smartshop/bq-reader*`,
+          `arn:aws:secretsmanager:${this.region}:${this.account}:secret:smartshop/maps-server*`,
         ],
       }),
     );

@@ -17,10 +17,28 @@ export const idempotencyKeySchema = z
   .max(128)
   .regex(/^[A-Za-z0-9._-]+$/, "Invalid idempotency key");
 
-export const createOrderRequestSchema = z.object({
-  deliveryMethod: deliveryMethodSchema,
-  confirm: z.literal(true),
-});
+export const createOrderRequestSchema = z
+  .object({
+    deliveryMethod: deliveryMethodSchema,
+    confirm: z.literal(true),
+    deliveryAddress: z.string().trim().min(1).max(300).optional(),
+  })
+  .superRefine((body, ctx) => {
+    if (body.deliveryMethod === "EXPRESS" && !body.deliveryAddress) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Express delivery requires a delivery address",
+        path: ["deliveryAddress"],
+      });
+    }
+    if (body.deliveryMethod === "STANDARD" && body.deliveryAddress) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Standard delivery does not take a delivery address",
+        path: ["deliveryAddress"],
+      });
+    }
+  });
 
 export type CreateOrderRequest = z.infer<typeof createOrderRequestSchema>;
 
@@ -33,6 +51,15 @@ export const orderSchema = z.object({
   breakdown: priceBreakdownSchema,
   isPremiumAtPurchase: z.boolean(),
   createdAt: z.string().datetime(),
+  deliveryAddress: z.string().min(1).max(300).optional(),
+  expressRouteId: z.string().min(1).max(80).optional(),
 });
 
 export type Order = z.infer<typeof orderSchema>;
+
+export type OrderDetail = Order & {
+  storeName?: string;
+  distanceMeters?: number;
+  durationSeconds?: number;
+  routeGeojson?: string;
+};

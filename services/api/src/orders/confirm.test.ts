@@ -53,8 +53,41 @@ describe("hashOrderRequest", () => {
     assert.equal(a, b);
     assert.notEqual(
       a,
-      hashOrderRequest({ deliveryMethod: "EXPRESS", confirm: true }),
+      hashOrderRequest({ deliveryMethod: "EXPRESS", confirm: true, deliveryAddress: "1 Market St" }),
     );
+    assert.notEqual(
+      hashOrderRequest({
+        deliveryMethod: "EXPRESS",
+        confirm: true,
+        deliveryAddress: "1 Market St",
+      }),
+      hashOrderRequest({
+        deliveryMethod: "EXPRESS",
+        confirm: true,
+        deliveryAddress: "2 Market St",
+      }),
+    );
+  });
+});
+
+describe("express address", () => {
+  it("requires an address only for express", () => {
+    assert.throws(() =>
+      createOrderRequestSchema.parse({ deliveryMethod: "EXPRESS", confirm: true }),
+    );
+    assert.throws(() =>
+      createOrderRequestSchema.parse({
+        deliveryMethod: "STANDARD",
+        confirm: true,
+        deliveryAddress: "1 Market St",
+      }),
+    );
+    const parsed = createOrderRequestSchema.parse({
+      deliveryMethod: "EXPRESS",
+      confirm: true,
+      deliveryAddress: "  1 Market St  ",
+    });
+    assert.equal(parsed.deliveryAddress, "1 Market St");
   });
 });
 

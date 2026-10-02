@@ -8,11 +8,16 @@ export function CheckoutPage() {
   const navigate = useNavigate();
   const idempotencyKey = useRef(crypto.randomUUID());
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>("STANDARD");
+  const [deliveryAddress, setDeliveryAddress] = useState("");
   const [quote, setQuote] = useState<QuoteResponse | null>(null);
   const [confirmed, setConfirmed] = useState(false);
   const [empty, setEmpty] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    idempotencyKey.current = crypto.randomUUID();
+  }, [deliveryMethod, deliveryAddress]);
 
   useEffect(() => {
     let cancelled = false;
@@ -51,7 +56,11 @@ export function CheckoutPage() {
     setBusy(true);
     setError(null);
     try {
-      const order = await createOrder(deliveryMethod, idempotencyKey.current);
+      const order = await createOrder(
+        deliveryMethod,
+        idempotencyKey.current,
+        deliveryMethod === "EXPRESS" ? deliveryAddress.trim() : undefined,
+      );
       navigate(`/orders/${order.orderId}`, { state: { placed: true } });
     } catch (caught) {
       if (caught instanceof ApiRequestError && caught.code === "CART_EMPTY") {
@@ -112,6 +121,19 @@ export function CheckoutPage() {
               />
               Express ({formatCents(DELIVERY_CENTS.EXPRESS)})
             </label>
+            {deliveryMethod === "EXPRESS" ? (
+              <label className="address">
+                Delivery address
+                <input
+                  type="text"
+                  value={deliveryAddress}
+                  maxLength={300}
+                  autoComplete="street-address"
+                  placeholder="Street, city, state"
+                  onChange={(event) => setDeliveryAddress(event.target.value)}
+                />
+              </label>
+            ) : null}
           </fieldset>
           <dl className="totals">
             <div>
@@ -147,7 +169,15 @@ export function CheckoutPage() {
             />
             I confirm this order and understand checkout is simulated.
           </label>
-          <button type="button" disabled={!confirmed || busy} onClick={() => void placeOrder()}>
+          <button
+            type="button"
+            disabled={
+              !confirmed ||
+              busy ||
+              (deliveryMethod === "EXPRESS" && deliveryAddress.trim().length === 0)
+            }
+            onClick={() => void placeOrder()}
+          >
             Place order
           </button>
         </>

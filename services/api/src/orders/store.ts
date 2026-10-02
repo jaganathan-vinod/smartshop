@@ -21,6 +21,7 @@ import {
 } from "../env.js";
 import { getUser } from "../identity/store.js";
 import { computeQuote } from "../pricing/engine.js";
+import { ExpressRouteError, planExpressRoute } from "./express-route.js";
 import { formatOrderNumber, hashOrderRequest } from "./number.js";
 
 const ORDER_SK_PREFIX = "ORDER#";
@@ -52,6 +53,12 @@ export async function confirmOrder(
   body: CreateOrderRequest,
   idempotencyKey?: string,
 ): Promise<Order> {
+  if (body.deliveryMethod === "EXPRESS" && !body.deliveryAddress) {
+    throw new OrderError("VALIDATION_ERROR", "Express delivery requires a delivery address");
+  }
+  if (body.deliveryMethod === "STANDARD" && body.deliveryAddress) {
+    throw new OrderError("VALIDATION_ERROR", "Standard delivery does not take a delivery address");
+  }
   const requestHash = hashOrderRequest(body);
   if (idempotencyKey) {
     const existing = await getIdempotency(userId, idempotencyKey);
@@ -96,9 +103,26 @@ export async function confirmOrder(
   );
   const createdAtDate = new Date();
   const createdAt = createdAtDate.toISOString();
+  const orderId = `ord_${crypto.randomUUID().replaceAll("-", "")}`;
+  let expressRouteId: string | undefined;
+  if (body.deliveryMethod === "EXPRESS" && body.deliveryAddress) {
+    try {
+      const planned = await planExpressRoute({
+        orderId,
+        userId,
+        deliveryAddress: body.deliveryAddress,
+      });
+      expressRouteId = planned.routeId;
+    } catch (error) {
+      if (error instanceof ExpressRouteError) {
+        throw new OrderError(error.code, error.message);
+      }
+      throw new OrderError("ROUTE_FAILED", "Could not compute the express route");
+    }
+  }
   const sequence = await allocateOrderNumber();
   const order: Order = orderSchema.parse({
-    orderId: `ord_${crypto.randomUUID().replaceAll("-", "")}`,
+    orderId,
     orderNumber: formatOrderNumber(createdAtDate, sequence),
     status: "CONFIRMED",
     deliveryMethod: body.deliveryMethod,
@@ -106,6 +130,9 @@ export async function confirmOrder(
     breakdown: quote.breakdown,
     isPremiumAtPurchase: quote.isPremium,
     createdAt,
+    ...(expressRouteId && body.deliveryAddress
+      ? { deliveryAddress: body.deliveryAddress, expressRouteId }
+      : {}),
   });
 
   try {

@@ -1,14 +1,26 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
-import type { Order } from "@smartshop/shared";
+import type { OrderDetail } from "@smartshop/shared";
 import { ApiRequestError, getOrder } from "../api";
+import { loadConfig } from "../config";
 import { formatCents } from "../money";
+
+const OrderRouteMap = lazy(() =>
+  import("./OrderRouteMap").then((module) => ({ default: module.OrderRouteMap })),
+);
 
 export function OrderDetailPage() {
   const { orderId = "" } = useParams();
   const placed = Boolean((useLocation().state as { placed?: boolean } | null)?.placed);
-  const [order, setOrder] = useState<Order | null>(null);
+  const [order, setOrder] = useState<OrderDetail | null>(null);
+  const [mapsKey, setMapsKey] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadConfig()
+      .then((config) => setMapsKey(config.mapsBrowserKey))
+      .catch(() => setMapsKey(""));
+  }, []);
 
   useEffect(() => {
     getOrder(orderId)
@@ -47,6 +59,15 @@ export function OrderDetailPage() {
       <p className="eyebrow">{order.status}</p>
       <h1>{order.orderNumber}</h1>
       <p className="muted">{new Date(order.createdAt).toLocaleString()}</p>
+      {order.deliveryAddress ? <p>Deliver to {order.deliveryAddress}</p> : null}
+      {order.storeName ? (
+        <p className="muted">
+          From {order.storeName}
+          {typeof order.distanceMeters === "number" && typeof order.durationSeconds === "number"
+            ? ` · ${(order.distanceMeters / 1000).toFixed(1)} km · about ${Math.max(1, Math.round(order.durationSeconds / 60))} min drive`
+            : ""}
+        </p>
+      ) : null}
       <ul className="lines">
         {order.items.map((item) => (
           <li key={item.productId}>
@@ -83,6 +104,15 @@ export function OrderDetailPage() {
           <dd>{formatCents(order.breakdown.totalCents)}</dd>
         </div>
       </dl>
+      {order.routeGeojson ? (
+        <Suspense fallback={<p className="muted">Loading map…</p>}>
+          <OrderRouteMap
+            mapsKey={mapsKey}
+            routeGeojson={order.routeGeojson}
+            label={order.storeName ?? "Express route"}
+          />
+        </Suspense>
+      ) : null}
       <p>
         <Link to="/orders">All orders</Link>
       </p>

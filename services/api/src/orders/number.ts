@@ -8,12 +8,14 @@ export function formatOrderNumber(createdAt: Date, sequence: number): string {
 export function hashOrderRequest(body: {
   deliveryMethod: string;
   confirm: boolean;
+  deliveryAddress?: string;
 }): string {
   return createHash("sha256")
     .update(
       JSON.stringify({
         deliveryMethod: body.deliveryMethod,
         confirm: body.confirm,
+        deliveryAddress: body.deliveryAddress ?? "",
       }),
     )
     .digest("hex");

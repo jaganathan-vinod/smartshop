@@ -1701,3 +1701,19 @@ button.chat-send {
   border-radius: 0.8rem;
   overflow: hidden;
 }
+
+.route-map.order-route {
+  height: 24rem;
+  margin: 1rem 0;
+}
+
+.checkout .address {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.75rem;
+}
+
+.checkout .address input {
+  font: inherit;
+  padding: 0.55rem 0.7rem;
+}

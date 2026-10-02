@@ -16,15 +16,62 @@ let cachedSecret: string | undefined;
 let auth: GoogleAuth | undefined;
 let authEmail: string | undefined;
 
+export type BqQueryParameter = {
+  name: string;
+  type: "STRING" | "FLOAT64" | "INT64";
+  value: string;
+};
+
 export async function queryRouteMap(): Promise<RouteMapRow[]> {
+  const { project, dataset } = routeMapConfig();
+  const body = await runBigQuerySql(routeMapSql(project, dataset));
+  const routes = rowsFromBigQuery(body);
+  return routes.slice(0, ROUTE_MAP_LIMIT);
+}
+
+export async function runBigQuerySql(
+  sql: string,
+  parameters: BqQueryParameter[] = [],
+): Promise<BqQueryResponse> {
   const raw = await loadServiceAccountJson();
   if (!raw) {
     throw new RouteMapNotConfigured();
   }
   const credentials = parseServiceAccount(raw);
-  const { project, dataset } = routeMapConfig();
+  const { project } = routeMapConfig();
   const token = await accessToken(credentials);
-  return runQuery(token, project, routeMapSql(project, dataset));
+  const deadline = Date.now() + QUERY_DEADLINE_MS;
+  let body = await postQuery(token, project, sql, parameters);
+  while (body.jobComplete === false) {
+    if (Date.now() > deadline) {
+      throw new Error("BigQuery query timed out");
+    }
+    const jobId = body.jobReference?.jobId;
+    if (!jobId) {
+      throw new Error("BigQuery did not return a job id");
+    }
+    await sleep(400);
+    body = await getQueryResults(token, project, jobId, body.jobReference?.location, body.pageToken);
+  }
+  const failure = body.error?.message ?? body.errors?.[0]?.message;
+  if (failure) {
+    throw new Error(failure);
+  }
+  const rows = [...(body.rows ?? [])];
+  let pageToken = body.pageToken;
+  while (pageToken && rows.length < ROUTE_MAP_LIMIT) {
+    const jobId = body.jobReference?.jobId;
+    if (!jobId) {
+      break;
+    }
+    if (Date.now() > deadline) {
+      throw new Error("BigQuery query timed out");
+    }
+    body = await getQueryResults(token, project, jobId, body.jobReference?.location, pageToken);
+    rows.push(...(body.rows ?? []));
+    pageToken = body.pageToken;
+  }
+  return { ...body, rows: rows.slice(0, ROUTE_MAP_LIMIT) };
 }
 
 async function loadServiceAccountJson(): Promise<string | undefined> {
@@ -76,44 +123,12 @@ async function accessToken(credentials: JWTInput): Promise<string> {
   return access.token;
 }
 
-async function runQuery(token: string, project: string, sql: string): Promise<RouteMapRow[]> {
-  const deadline = Date.now() + QUERY_DEADLINE_MS;
-  let body = await postQuery(token, project, sql);
-  while (body.jobComplete === false) {
-    if (Date.now() > deadline) {
-      throw new Error("BigQuery query timed out");
-    }
-    const jobId = body.jobReference?.jobId;
-    if (!jobId) {
-      throw new Error("BigQuery did not return a job id");
-    }
-    await sleep(400);
-    body = await getQueryResults(token, project, jobId, body.jobReference?.location, body.pageToken);
-  }
-  const failure = body.error?.message ?? body.errors?.[0]?.message;
-  if (failure) {
-    throw new Error(failure);
-  }
-  const routes = rowsFromBigQuery(body);
-  let pageToken = body.pageToken;
-  while (pageToken && routes.length < ROUTE_MAP_LIMIT) {
-    const jobId = body.jobReference?.jobId;
-    if (!jobId) {
-      break;
-    }
-    body = await getQueryResults(token, project, jobId, body.jobReference?.location, pageToken);
-    for (const row of rowsFromBigQuery(body)) {
-      if (routes.length >= ROUTE_MAP_LIMIT) {
-        break;
-      }
-      routes.push(row);
-    }
-    pageToken = body.pageToken;
-  }
-  return routes;
-}
-
-async function postQuery(token: string, project: string, sql: string): Promise<BqQueryResponse> {
+async function postQuery(
+  token: string,
+  project: string,
+  sql: string,
+  parameters: BqQueryParameter[],
+): Promise<BqQueryResponse> {
   const response = await fetch(
     `https://bigquery.googleapis.com/bigquery/v2/projects/${encodeURIComponent(project)}/queries`,
     {
@@ -127,6 +142,12 @@ async function postQuery(token: string, project: string, sql: string): Promise<B
         useLegacySql: false,
         timeoutMs: 20_000,
         maxResults: ROUTE_MAP_LIMIT,
+        parameterMode: "NAMED",
+        queryParameters: parameters.map((parameter) => ({
+          name: parameter.name,
+          parameterType: { type: parameter.type },
+          parameterValue: { value: parameter.value },
+        })),
       }),
       signal: AbortSignal.timeout(QUERY_DEADLINE_MS),
     },

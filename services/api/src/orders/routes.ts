@@ -8,6 +8,7 @@ import {
 import { currentClaims } from "../auth.js";
 import { jsonError, zodError } from "../http.js";
 import { PricingError } from "../pricing/engine.js";
+import { loadExpressRouteSnapshot } from "./express-route.js";
 import { confirmOrder, getOrderForUser, listOrders, OrderError } from "./store.js";
 
 function requireUser(c: Context) {
@@ -61,7 +62,19 @@ export function registerOrderRoutes(app: Hono): void {
       if (!order) {
         return jsonError(c, 404, "NOT_FOUND", "Order not found");
       }
-      return c.json(order);
+      if (!order.expressRouteId) {
+        return c.json(order);
+      }
+      try {
+        const snapshot = await loadExpressRouteSnapshot(auth.claims.sub, order.expressRouteId);
+        return c.json(snapshot ? { ...order, ...snapshot } : order);
+      } catch (error) {
+        console.error(
+          "express route snapshot failed",
+          error instanceof Error ? error.message : "unknown",
+        );
+        return c.json(order);
+      }
     } catch (error) {
       if (error instanceof ZodError) {
         return zodError(c, error);
@@ -77,12 +90,16 @@ function mapOrderError(c: Context, error: unknown) {
   }
   if (error instanceof OrderError) {
     const status =
-      error.code === "IDEMPOTENCY_CONFLICT" ||
-      error.code === "INSUFFICIENT_STOCK" ||
-      error.code === "PRODUCT_UNAVAILABLE" ||
-      error.code === "CART_CHANGED"
-        ? 409
-        : 400;
+      error.code === "NO_STORE"
+        ? 503
+        : error.code === "ROUTE_FAILED"
+          ? 502
+          : error.code === "IDEMPOTENCY_CONFLICT" ||
+              error.code === "INSUFFICIENT_STOCK" ||
+              error.code === "PRODUCT_UNAVAILABLE" ||
+              error.code === "CART_CHANGED"
+            ? 409
+            : 400;
     return jsonError(c, status, error.code, error.message, error.details);
   }
   if (error instanceof ZodError) {
