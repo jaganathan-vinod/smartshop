@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { deliveryMethodSchema } from "./delivery.js";
 import { cartLineSchema, priceBreakdownSchema } from "./quote.js";
+import { planApiCallSchema } from "./store-plan.js";
 
 export const orderStatusSchema = z.literal("CONFIRMED");
 export type OrderStatus = z.infer<typeof orderStatusSchema>;
@@ -53,6 +54,7 @@ export const orderSchema = z.object({
   createdAt: z.string().datetime(),
   deliveryAddress: z.string().min(1).max(300).optional(),
   expressRouteId: z.string().min(1).max(80).optional(),
+  trace: z.array(planApiCallSchema).max(40).optional(),
 });
 
 export type Order = z.infer<typeof orderSchema>;

@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import type { PlanApiCall, PlanChoice } from "@smartshop/shared";
 import { createAgentSession, sendAgentMessage } from "../api";
 import { loadConfig } from "../config";
+import { GoogleCallTrace } from "./GoogleCallTrace";
 
 const PlanMap = lazy(() => import("./PlanMap").then((module) => ({ default: module.PlanMap })));
 
@@ -139,37 +140,12 @@ export function AdminPlanningPage() {
         )}
       </div>
     </section>
-    {trace.length > 0 ? <PlanTrace calls={trace} /> : null}
+    <GoogleCallTrace
+      summary="How this plan was computed"
+      intro="Geocoding turns the address into a point. Places searchNearby finds grocery competitors within 3 km. Routes computeRoutes then drives from each SmartShop store and each competitor to that point. The API key is omitted."
+      calls={trace}
+    />
     </>
-  );
-}
-
-function PlanTrace({ calls }: { calls: PlanApiCall[] }) {
-  return (
-    <details className="plan-trace">
-      <summary>How this plan was computed</summary>
-      <p className="muted">
-        Geocoding turns the address into a point. Places searchNearby finds grocery competitors within 3 km.
-        Routes computeRoutes then drives from each SmartShop store and each competitor to that point. The API key
-        is omitted.
-      </p>
-      {calls.map((call, index) => (
-        <details key={`${call.api}-${index}`} className="plan-trace-call">
-          <summary>
-            {call.label} · HTTP {call.status}
-          </summary>
-          <p>
-            <code>
-              {call.method} {call.url}
-            </code>
-          </p>
-          <h3>Request</h3>
-          <pre>{call.request}</pre>
-          <h3>Response</h3>
-          <pre>{call.response}</pre>
-        </details>
-      ))}
-    </details>
   );
 }
 

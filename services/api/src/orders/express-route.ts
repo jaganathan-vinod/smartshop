@@ -1,6 +1,15 @@
 import { GetSecretValueCommand, SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
+import type { PlanApiCall } from "@smartshop/shared";
 import { routeMapConfig, type BqQueryResponse } from "../admin/routes-map/query.js";
 import { runBigQuerySql, type BqQueryParameter } from "../admin/routes-map/client.js";
+import {
+  geocodeSummary,
+  jsonBlock,
+  readResponseJson,
+  recordCall,
+  routesSummary,
+  withoutApiKey,
+} from "../admin/agent/plan-trace.js";
 import { decodePolyline, linestringWkt } from "./polyline.js";
 
 const IDENTIFIER = /^[A-Za-z][A-Za-z0-9_-]{0,127}$/;
@@ -12,6 +21,7 @@ export class ExpressRouteError extends Error {
   constructor(
     public readonly code: "NO_STORE" | "ROUTE_FAILED",
     message: string,
+    public readonly calls: PlanApiCall[] = [],
   ) {
     super(message);
     this.name = "ExpressRouteError";
@@ -20,6 +30,7 @@ export class ExpressRouteError extends Error {
 
 export type PlannedExpressRoute = {
   routeId: string;
+  trace: PlanApiCall[];
 };
 
 export type ExpressRouteSnapshot = {
@@ -70,45 +81,53 @@ export async function planExpressRoute(input: {
   userId: string;
   deliveryAddress: string;
 }): Promise<PlannedExpressRoute> {
+  const calls: PlanApiCall[] = [];
   const apiKey = await loadMapsServerKey();
-  const destination = await geocodeAddress(input.deliveryAddress, apiKey);
+  const destination = await geocodeAddress(input.deliveryAddress, apiKey, calls);
   const stores = await listActiveStores();
   if (stores.length === 0) {
-    throw new ExpressRouteError("NO_STORE", "No active store can fulfill express delivery");
+    throw new ExpressRouteError("NO_STORE", "No active store can fulfill express delivery", calls);
   }
   const drives: StoreDrive[] = [];
   for (const store of stores) {
-    const drive = await driveFromStore(store, destination, apiKey);
+    const drive = await driveFromStore(store, destination, apiKey, calls);
     if (drive) {
       drives.push(drive);
     }
   }
   const chosen = pickFastestDrive(drives);
   if (!chosen) {
-    throw new ExpressRouteError("ROUTE_FAILED", "Could not compute a driving route to that address");
+    throw new ExpressRouteError("ROUTE_FAILED", "Could not compute a driving route to that address", calls);
   }
   const points = decodePolyline(chosen.encodedPolyline);
   let wkt: string;
   try {
     wkt = linestringWkt(points);
   } catch {
-    throw new ExpressRouteError("ROUTE_FAILED", "The driving route could not be saved");
+    throw new ExpressRouteError("ROUTE_FAILED", "The driving route could not be saved", calls);
   }
   const routeId = `route_${crypto.randomUUID().replaceAll("-", "")}`;
-  await insertExpressRoute({
-    routeId,
-    orderId: input.orderId,
-    userId: input.userId,
-    storeId: chosen.storeId,
-    deliveryAddress: input.deliveryAddress,
-    destLat: destination.lat,
-    destLng: destination.lng,
-    distanceMeters: chosen.distanceMeters,
-    durationSeconds: chosen.durationSeconds,
-    encodedPolyline: chosen.encodedPolyline,
-    wkt,
-  });
-  return { routeId };
+  try {
+    await insertExpressRoute({
+      routeId,
+      orderId: input.orderId,
+      userId: input.userId,
+      storeId: chosen.storeId,
+      deliveryAddress: input.deliveryAddress,
+      destLat: destination.lat,
+      destLng: destination.lng,
+      distanceMeters: chosen.distanceMeters,
+      durationSeconds: chosen.durationSeconds,
+      encodedPolyline: chosen.encodedPolyline,
+      wkt,
+    });
+  } catch (error) {
+    if (error instanceof ExpressRouteError) {
+      throw new ExpressRouteError(error.code, error.message, calls);
+    }
+    throw error;
+  }
+  return { routeId, trace: calls };
 }
 
 export async function loadExpressRouteSnapshot(
@@ -238,55 +257,91 @@ async function insertExpressRoute(input: {
 async function geocodeAddress(
   address: string,
   apiKey: string,
+  calls: PlanApiCall[],
 ): Promise<{ lat: number; lng: number }> {
+  const region = process.env.GEOCODE_REGION?.trim() || "us";
   const url = new URL(GEOCODE_URL);
   url.searchParams.set("address", address);
-  url.searchParams.set("region", process.env.GEOCODE_REGION?.trim() || "us");
+  url.searchParams.set("region", region);
   url.searchParams.set("key", apiKey);
-  let payload: {
-    status?: string;
-    results?: Array<{ geometry?: { location?: { lat?: number; lng?: number } } }>;
-  };
+  const request = jsonBlock({ address, region }, apiKey);
   try {
     const response = await fetch(url, { signal: AbortSignal.timeout(15_000) });
-    payload = (await response.json()) as typeof payload;
-    if (!response.ok) {
-      throw new Error(`geocode HTTP ${response.status}`);
+    const payload = (await readResponseJson(response)) as {
+      status?: string;
+      results?: Array<{
+        formatted_address?: string;
+        geometry?: { location?: { lat?: number; lng?: number } };
+      }>;
+    };
+    recordCall(calls, {
+      label: "Geocode delivery address",
+      api: "GEOCODE",
+      method: "GET",
+      url: withoutApiKey(url.toString(), apiKey),
+      status: response.status,
+      request,
+      response: jsonBlock(geocodeSummary(payload), apiKey),
+    });
+    const location = payload.results?.[0]?.geometry?.location;
+    if (
+      !response.ok ||
+      payload.status !== "OK" ||
+      typeof location?.lat !== "number" ||
+      typeof location.lng !== "number" ||
+      location.lat < -90 ||
+      location.lat > 90 ||
+      location.lng < -180 ||
+      location.lng > 180
+    ) {
+      throw new ExpressRouteError("ROUTE_FAILED", "Could not locate that address", calls);
     }
+    return { lat: location.lat, lng: location.lng };
   } catch (error) {
     if (error instanceof ExpressRouteError) {
       throw error;
     }
-    throw new ExpressRouteError("ROUTE_FAILED", "Could not locate that address");
+    recordCall(calls, {
+      label: "Geocode delivery address",
+      api: "GEOCODE",
+      method: "GET",
+      url: withoutApiKey(url.toString(), apiKey),
+      status: 0,
+      request,
+      response: jsonBlock(
+        { error: error instanceof Error ? error.message : "request failed" },
+        apiKey,
+      ),
+    });
+    throw new ExpressRouteError("ROUTE_FAILED", "Could not locate that address", calls);
   }
-  if (payload.status !== "OK") {
-    throw new ExpressRouteError("ROUTE_FAILED", "Could not locate that address");
-  }
-  const location = payload.results?.[0]?.geometry?.location;
-  if (
-    typeof location?.lat !== "number" ||
-    typeof location.lng !== "number" ||
-    location.lat < -90 ||
-    location.lat > 90 ||
-    location.lng < -180 ||
-    location.lng > 180
-  ) {
-    throw new ExpressRouteError("ROUTE_FAILED", "Could not locate that address");
-  }
-  return { lat: location.lat, lng: location.lng };
 }
 
 async function driveFromStore(
   store: StoreRow,
   destination: { lat: number; lng: number },
   apiKey: string,
+  calls: PlanApiCall[],
 ): Promise<StoreDrive | undefined> {
+  const body = {
+    origin: { location: { latLng: { latitude: store.lat, longitude: store.lng } } },
+    destination: {
+      location: { latLng: { latitude: destination.lat, longitude: destination.lng } },
+    },
+    travelMode: "DRIVE",
+    routingPreference: "TRAFFIC_AWARE",
+    computeAlternativeRoutes: false,
+    units: "METRIC",
+  };
+  const request = jsonBlock({ headers: { "X-Goog-FieldMask": FIELD_MASK }, body }, apiKey);
+  const label = `Routes computeRoutes · ${store.name}`.slice(0, 200);
   let payload: {
     routes?: Array<{
       distanceMeters?: number;
       duration?: string;
       polyline?: { encodedPolyline?: string };
     }>;
+    error?: { message?: string; status?: string };
   };
   try {
     const response = await fetch(ROUTES_URL, {
@@ -296,23 +351,37 @@ async function driveFromStore(
         "X-Goog-Api-Key": apiKey,
         "X-Goog-FieldMask": FIELD_MASK,
       },
-      body: JSON.stringify({
-        origin: { location: { latLng: { latitude: store.lat, longitude: store.lng } } },
-        destination: {
-          location: { latLng: { latitude: destination.lat, longitude: destination.lng } },
-        },
-        travelMode: "DRIVE",
-        routingPreference: "TRAFFIC_AWARE",
-        computeAlternativeRoutes: false,
-        units: "METRIC",
-      }),
+      body: JSON.stringify(body),
       signal: AbortSignal.timeout(15_000),
     });
-    payload = (await response.json()) as typeof payload;
+    payload = (await readResponseJson(response)) as typeof payload;
+    recordCall(calls, {
+      label,
+      api: "ROUTES",
+      method: "POST",
+      url: ROUTES_URL,
+      status: response.status,
+      request,
+      response: jsonBlock(routesSummary(payload), apiKey),
+    });
     if (!response.ok) {
       return undefined;
     }
-  } catch {
+  } catch (error) {
+    if (!(error instanceof ExpressRouteError)) {
+      recordCall(calls, {
+        label,
+        api: "ROUTES",
+        method: "POST",
+        url: ROUTES_URL,
+        status: 0,
+        request,
+        response: jsonBlock(
+          { error: error instanceof Error ? error.message : "request failed" },
+          apiKey,
+        ),
+      });
+    }
     return undefined;
   }
   const route = payload.routes?.[0];

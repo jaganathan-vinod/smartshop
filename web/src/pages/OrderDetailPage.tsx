@@ -4,6 +4,7 @@ import type { OrderDetail } from "@smartshop/shared";
 import { ApiRequestError, getOrder } from "../api";
 import { loadConfig } from "../config";
 import { formatCents } from "../money";
+import { GoogleCallTrace } from "./GoogleCallTrace";
 
 const OrderRouteMap = lazy(() =>
   import("./OrderRouteMap").then((module) => ({ default: module.OrderRouteMap })),
@@ -113,6 +114,11 @@ export function OrderDetailPage() {
           />
         </Suspense>
       ) : null}
+      <GoogleCallTrace
+        summary="How this delivery route was computed"
+        intro="Geocoding turns the delivery address into a point. Routes computeRoutes then drives from each SmartShop store to that point, and the fastest drive is saved. The API key is omitted."
+        calls={order.trace ?? []}
+      />
       <p>
         <Link to="/orders">All orders</Link>
       </p>

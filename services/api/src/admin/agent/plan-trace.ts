@@ -79,6 +79,18 @@ export function recordCall(calls: PlanApiCall[], call: PlanApiCall): void {
   }
 }
 
+export async function readResponseJson(response: Response): Promise<unknown> {
+  const raw = await response.text();
+  if (raw.length === 0) {
+    return {};
+  }
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch {
+    return { raw: raw.slice(0, 2_000) };
+  }
+}
+
 function clipPolyline(encoded: string | undefined): string | undefined {
   if (!encoded) {
     return undefined;

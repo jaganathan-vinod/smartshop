@@ -1,8 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { DELIVERY_CENTS, type DeliveryMethod, type QuoteResponse } from "@smartshop/shared";
+import {
+  DELIVERY_CENTS,
+  type DeliveryMethod,
+  type PlanApiCall,
+  type QuoteResponse,
+} from "@smartshop/shared";
 import { ApiRequestError, createOrder, createQuote, getCart } from "../api";
 import { formatCents } from "../money";
+import { apiCallsFromDetails, GoogleCallTrace } from "./GoogleCallTrace";
 
 export function CheckoutPage() {
   const navigate = useNavigate();
@@ -13,6 +19,7 @@ export function CheckoutPage() {
   const [confirmed, setConfirmed] = useState(false);
   const [empty, setEmpty] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [trace, setTrace] = useState<PlanApiCall[]>([]);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -55,6 +62,7 @@ export function CheckoutPage() {
     }
     setBusy(true);
     setError(null);
+    setTrace([]);
     try {
       const order = await createOrder(
         deliveryMethod,
@@ -68,6 +76,7 @@ export function CheckoutPage() {
         setQuote(null);
       }
       setError(caught instanceof Error ? caught.message : "Could not place order");
+      setTrace(caught instanceof ApiRequestError ? apiCallsFromDetails(caught.details) : []);
       setBusy(false);
     }
   }
@@ -88,6 +97,11 @@ export function CheckoutPage() {
     <section className="checkout">
       <h1>Checkout</h1>
       {error && <p className="flash error">{error}</p>}
+      <GoogleCallTrace
+        summary="How this delivery route was computed"
+        intro="These are the Google calls made before the order stopped. The API key is omitted."
+        calls={trace}
+      />
       {!quote && !error ? <p className="muted">Loading quote…</p> : null}
       {quote ? (
         <>

@@ -105,6 +105,7 @@ export async function confirmOrder(
   const createdAt = createdAtDate.toISOString();
   const orderId = `ord_${crypto.randomUUID().replaceAll("-", "")}`;
   let expressRouteId: string | undefined;
+  let trace: Order["trace"];
   if (body.deliveryMethod === "EXPRESS" && body.deliveryAddress) {
     try {
       const planned = await planExpressRoute({
@@ -113,9 +114,14 @@ export async function confirmOrder(
         deliveryAddress: body.deliveryAddress,
       });
       expressRouteId = planned.routeId;
+      trace = planned.trace;
     } catch (error) {
       if (error instanceof ExpressRouteError) {
-        throw new OrderError(error.code, error.message);
+        throw new OrderError(
+          error.code,
+          error.message,
+          error.calls.length > 0 ? error.calls : undefined,
+        );
       }
       throw new OrderError("ROUTE_FAILED", "Could not compute the express route");
     }
@@ -131,7 +137,11 @@ export async function confirmOrder(
     isPremiumAtPurchase: quote.isPremium,
     createdAt,
     ...(expressRouteId && body.deliveryAddress
-      ? { deliveryAddress: body.deliveryAddress, expressRouteId }
+      ? {
+          deliveryAddress: body.deliveryAddress,
+          expressRouteId,
+          ...(trace && trace.length > 0 ? { trace } : {}),
+        }
       : {}),
   });
 
@@ -196,7 +206,11 @@ export async function listOrders(userId: string): Promise<Order[]> {
   return (result.Items ?? [])
     .map((item) => orderSchema.safeParse(item))
     .filter((parsed) => parsed.success)
-    .map((parsed) => parsed.data);
+    .map((parsed) => {
+      const order = { ...parsed.data };
+      delete order.trace;
+      return order;
+    });
 }
 
 export async function getOrderForUser(
