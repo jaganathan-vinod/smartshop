@@ -13,6 +13,17 @@ function app() {
       reply: "Nearest current store: SmartShop Orchard.",
       planId: "plan_test",
       routeGeojson: LINE,
+      trace: [
+        {
+          label: "Places searchNearby",
+          api: "PLACES",
+          method: "POST",
+          url: "https://places.googleapis.com/v1/places:searchNearby",
+          status: 200,
+          request: "{}",
+          response: "{\"places\":[]}",
+        },
+      ],
     }),
   });
   return hono;
@@ -43,9 +54,14 @@ describe("admin agent sessions", () => {
         },
       );
       assert.equal(message.status, 200);
-      const turn = (await message.json()) as { reply: string; routeGeojson: string };
+      const turn = (await message.json()) as {
+        reply: string;
+        routeGeojson: string;
+        trace?: Array<{ label: string }>;
+      };
       assert.match(turn.reply, /SmartShop Orchard/);
       assert.equal(turn.routeGeojson, LINE);
+      assert.equal(turn.trace?.[0]?.label, "Places searchNearby");
       const loaded = await hono.request(
         `http://localhost/v1/admin/agent/sessions/${session.sessionId}`,
       );

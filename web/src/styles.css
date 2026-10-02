@@ -1715,23 +1715,87 @@ button.chat-send {
   padding: 0.55rem 0.7rem;
 }
 
-.plan-log {
-  list-style: none;
-  padding: 0;
-  display: grid;
-  gap: 0.6rem;
+.plan-group {
   margin: 1rem 0;
 }
 
-.plan-log li {
-  padding: 0.7rem 0.8rem;
-  border-radius: 0.7rem;
-  background: var(--paper);
+.plan-group h2 {
+  font-size: 0.95rem;
+  margin: 0 0 0.45rem;
 }
 
-.plan-log li.user {
-  background: transparent;
+.plan-choices {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.plan-choice {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  text-align: left;
+  color: inherit;
+  background: white;
   border: 1px solid var(--line);
+  border-radius: 0.7rem;
+  padding: 0.65rem 0.75rem;
+}
+
+.plan-choice.is-selected {
+  border-color: #1a73e8;
+  background: #e8f0fe;
+}
+
+.plan-notice {
+  margin: 1rem 0;
+}
+
+.plan-map-caption {
+  margin-bottom: 0.4rem;
+}
+
+.plan-trace {
+  margin-top: 1.5rem;
+  border: 1px solid var(--line);
+  border-radius: 0.8rem;
+  background: white;
+  padding: 0.85rem 1rem 1rem;
+}
+
+.plan-trace > summary,
+.plan-trace-call > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.plan-trace-call {
+  margin-top: 0.7rem;
+  border-top: 1px solid var(--line);
+  padding-top: 0.7rem;
+}
+
+.plan-trace h3 {
+  font-size: 0.85rem;
+  margin: 0.7rem 0 0.35rem;
+}
+
+.plan-trace pre {
+  overflow: auto;
+  max-height: 16rem;
+  margin: 0;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  background: #f4f7f5;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.plan-trace code {
+  font-size: 0.82rem;
 }
 
 .plan-map-wrap {

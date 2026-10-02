@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   candidateAddress,
+  planChoices,
   planFeatureCollection,
   planReply,
   type PlanDrive,
@@ -45,6 +46,36 @@ describe("planReply", () => {
     assert.match(reply, /Nearest current store: SmartShop Orchard/);
     assert.match(reply, /Nearest competitor: Neighborhood Market/);
     assert.match(reply, /2 current store routes and 1 competitor route/);
+  });
+});
+
+describe("planChoices", () => {
+  it("leads with the nearest current store, then competitors by drive time", () => {
+    const choices = planChoices([
+      { ...store, subjectName: "SmartShop Tampines", durationSeconds: 900 },
+      store,
+      {
+        ...store,
+        subjectKind: "COMPETITOR",
+        subjectName: "Far Market",
+        originStoreId: undefined,
+        durationSeconds: 800,
+      },
+      {
+        ...store,
+        subjectKind: "COMPETITOR",
+        subjectName: "Near Market",
+        originStoreId: undefined,
+        durationSeconds: 120,
+      },
+    ]);
+    assert.deepEqual(
+      choices.map((choice) => choice.subjectName),
+      ["SmartShop Orchard", "Near Market", "Far Market"],
+    );
+    assert.equal(choices[0]?.subjectKind, "CURRENT_STORE");
+    const collection = JSON.parse(choices[0]?.routeGeojson ?? "{}") as { features: unknown[] };
+    assert.equal(collection.features.length, 1);
   });
 });
 

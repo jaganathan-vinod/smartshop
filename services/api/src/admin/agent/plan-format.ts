@@ -17,6 +17,31 @@ export function candidateAddress(text: string): string {
     .trim();
 }
 
+export type PlanChoice = {
+  id: string;
+  subjectKind: PlanSubjectKind;
+  subjectName: string;
+  distanceMeters: number;
+  durationSeconds: number;
+  routeGeojson: string;
+};
+
+export function planChoices(drives: PlanDrive[]): PlanChoice[] {
+  const nearestStore = nearest(drives.filter((drive) => drive.subjectKind === "CURRENT_STORE"));
+  const competitors = drives
+    .filter((drive) => drive.subjectKind === "COMPETITOR")
+    .sort((left, right) => left.durationSeconds - right.durationSeconds);
+  const ordered = nearestStore ? [nearestStore, ...competitors] : competitors;
+  return ordered.map((drive, index) => ({
+    id: `${drive.subjectKind === "CURRENT_STORE" ? "store" : "competitor"}-${index}`,
+    subjectKind: drive.subjectKind,
+    subjectName: drive.subjectName,
+    distanceMeters: drive.distanceMeters,
+    durationSeconds: drive.durationSeconds,
+    routeGeojson: planFeatureCollection([drive]),
+  }));
+}
+
 export function planFeatureCollection(drives: PlanDrive[]): string {
   return JSON.stringify({
     type: "FeatureCollection",

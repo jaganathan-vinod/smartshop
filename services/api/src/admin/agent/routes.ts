@@ -64,6 +64,8 @@ export function registerAdminAgentRoutes(app: Hono, deps: AgentRouteDeps = {}): 
         text: planned.reply,
         planId: planned.planId,
         routeGeojson: planned.routeGeojson,
+        choices: planned.choices,
+        trace: planned.trace,
       });
       const turn: AgentTurn = {
         sessionId,
@@ -71,6 +73,8 @@ export function registerAdminAgentRoutes(app: Hono, deps: AgentRouteDeps = {}): 
         status: "COMPLETE",
         planId: planned.planId,
         routeGeojson: planned.routeGeojson,
+        choices: planned.choices,
+        trace: planned.trace,
       };
       return c.json(turn);
     } catch (error) {

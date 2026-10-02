@@ -1,3 +1,4 @@
+import type { PlanApiCall } from "@smartshop/shared";
 import { routeMapConfig, type BqQueryResponse } from "../routes-map/query.js";
 import { runBigQuerySql, type BqQueryParameter } from "../routes-map/client.js";
 import { loadMapsServerKey, parseDurationSeconds } from "../../orders/express-route.js";
@@ -5,10 +6,19 @@ import { decodePolyline, linestringWkt } from "../../orders/polyline.js";
 import {
   candidateAddress,
   lineGeoJson,
+  planChoices,
   planFeatureCollection,
   planReply,
   type PlanDrive,
 } from "./plan-format.js";
+import {
+  geocodeSummary,
+  jsonBlock,
+  placesSummary,
+  recordCall,
+  routesSummary,
+  withoutApiKey,
+} from "./plan-trace.js";
 
 const IDENTIFIER = /^[A-Za-z][A-Za-z0-9_-]{0,127}$/;
 const PLACES_URL = "https://places.googleapis.com/v1/places:searchNearby";
@@ -28,6 +38,8 @@ export type StorePlanResult = {
   reply: string;
   planId?: string;
   routeGeojson?: string;
+  choices?: ReturnType<typeof planChoices>;
+  trace?: PlanApiCall[];
 };
 
 type StoreRow = { storeId: string; name: string; lat: number; lng: number };
@@ -45,31 +57,34 @@ export async function planCandidate(text: string): Promise<StorePlanResult> {
   } catch {
     return { reply: "Store planning is not configured. The Maps server key is missing." };
   }
+  const calls: PlanApiCall[] = [];
+  const finish = (result: StorePlanResult): StorePlanResult =>
+    calls.length > 0 ? { ...result, trace: calls } : result;
   let destination: { lat: number; lng: number };
   try {
-    destination = await geocodeAddress(address, apiKey);
+    destination = await geocodeAddress(address, apiKey, calls);
   } catch {
-    return { reply: `Could not locate ${address}. No plan was saved.` };
+    return finish({ reply: `Could not locate ${address}. No plan was saved.` });
   }
   let stores: StoreRow[];
   try {
     stores = await listActiveStores();
   } catch {
-    return { reply: "Could not read current stores. No plan was saved." };
+    return finish({ reply: "Could not read current stores. No plan was saved." });
   }
   if (stores.length === 0) {
-    return { reply: "There are no active stores. No plan was saved." };
+    return finish({ reply: "There are no active stores. No plan was saved." });
   }
   let places: PlaceRow[];
   try {
-    places = await nearbyCompetitors(destination, apiKey);
+    places = await nearbyCompetitors(destination, apiKey, calls);
   } catch {
-    return { reply: "Nearby competitor search failed. No plan was saved." };
+    return finish({ reply: "Nearby competitor search failed. No plan was saved." });
   }
   const drives: PlanDrive[] = [];
   try {
     for (const store of stores) {
-      const hit = await driveTo(store.lat, store.lng, destination, apiKey);
+      const hit = await driveTo(store, destination, apiKey, calls);
       const drive = hit ? toDrive(hit, {
         subjectKind: "CURRENT_STORE",
         subjectName: store.name,
@@ -80,7 +95,12 @@ export async function planCandidate(text: string): Promise<StorePlanResult> {
       }
     }
     for (const place of places) {
-      const hit = await driveTo(place.lat, place.lng, destination, apiKey);
+      const hit = await driveTo(
+        { name: place.name, lat: place.lat, lng: place.lng },
+        destination,
+        apiKey,
+        calls,
+      );
       const drive = hit ? toDrive(hit, {
         subjectKind: "COMPETITOR",
         subjectName: place.name,
@@ -91,24 +111,26 @@ export async function planCandidate(text: string): Promise<StorePlanResult> {
       }
     }
   } catch {
-    return { reply: "A driving-route request failed. No plan was saved." };
+    return finish({ reply: "A driving-route request failed. No plan was saved." });
   }
   if (drives.length === 0) {
-    return { reply: `No driving route reaches ${address}. No plan was saved.` };
+    return finish({ reply: `No driving route reaches ${address}. No plan was saved.` });
   }
   const planId = `plan_${crypto.randomUUID().replaceAll("-", "")}`;
   try {
     await insertPlan(planId, address, destination, drives);
   } catch {
-    return {
+    return finish({
       reply: "The routes were computed, but saving the plan failed. Check that routes.store_plan_results exists and the BigQuery reader can insert into it.",
-    };
+    });
   }
-  return {
+  const choices = planChoices(drives);
+  return finish({
     reply: planReply(address, drives),
     planId,
-    routeGeojson: planFeatureCollection(drives),
-  };
+    routeGeojson: choices[0]?.routeGeojson ?? planFeatureCollection(drives),
+    choices,
+  });
 }
 
 function toDrive(
@@ -130,7 +152,11 @@ function toDrive(
   }
 }
 
-async function geocodeAddress(address: string, apiKey: string): Promise<{ lat: number; lng: number }> {
+async function geocodeAddress(
+  address: string,
+  apiKey: string,
+  calls: PlanApiCall[],
+): Promise<{ lat: number; lng: number }> {
   const url = new URL("https://maps.googleapis.com/maps/api/geocode/json");
   url.searchParams.set("address", address);
   url.searchParams.set("key", apiKey);
@@ -139,10 +165,22 @@ async function geocodeAddress(address: string, apiKey: string): Promise<{ lat: n
     url.searchParams.set("region", region);
   }
   const response = await fetch(url, { signal: AbortSignal.timeout(15_000) });
-  const payload = (await response.json()) as {
+  const payload = (await readJson(response)) as {
     status?: string;
-    results?: Array<{ geometry?: { location?: { lat?: number; lng?: number } } }>;
+    results?: Array<{
+      formatted_address?: string;
+      geometry?: { location?: { lat?: number; lng?: number } };
+    }>;
   };
+  recordCall(calls, {
+    label: "Geocode candidate address",
+    api: "GEOCODE",
+    method: "GET",
+    url: withoutApiKey(url.toString(), apiKey),
+    status: response.status,
+    request: jsonBlock({ address, ...(region ? { region } : {}) }, apiKey),
+    response: jsonBlock(geocodeSummary(payload), apiKey),
+  });
   const location = payload.results?.[0]?.geometry?.location;
   if (!response.ok || payload.status !== "OK" || typeof location?.lat !== "number" || typeof location.lng !== "number") {
     throw new StorePlanError("Could not locate that address");
@@ -153,36 +191,49 @@ async function geocodeAddress(address: string, apiKey: string): Promise<{ lat: n
 async function nearbyCompetitors(
   destination: { lat: number; lng: number },
   apiKey: string,
+  calls: PlanApiCall[],
 ): Promise<PlaceRow[]> {
+  const body = {
+    includedTypes: ["grocery_store", "supermarket", "convenience_store"],
+    maxResultCount: COMPETITOR_LIMIT,
+    locationRestriction: {
+      circle: {
+        center: { latitude: destination.lat, longitude: destination.lng },
+        radius: PLACE_RADIUS_METERS,
+      },
+    },
+  };
+  const fieldMask = "places.id,places.displayName,places.location";
   const response = await fetch(PLACES_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "X-Goog-Api-Key": apiKey,
-      "X-Goog-FieldMask": "places.id,places.displayName,places.location",
+      "X-Goog-FieldMask": fieldMask,
     },
-    body: JSON.stringify({
-      includedTypes: ["grocery_store", "supermarket", "convenience_store"],
-      maxResultCount: COMPETITOR_LIMIT,
-      locationRestriction: {
-        circle: {
-          center: { latitude: destination.lat, longitude: destination.lng },
-          radius: PLACE_RADIUS_METERS,
-        },
-      },
-    }),
+    body: JSON.stringify(body),
     signal: AbortSignal.timeout(15_000),
   });
-  if (!response.ok) {
-    throw new StorePlanError("Nearby competitor search failed");
-  }
-  const payload = (await response.json()) as {
+  const payload = (await readJson(response)) as {
     places?: Array<{
       id?: string;
       displayName?: { text?: string };
       location?: { latitude?: number; longitude?: number };
     }>;
+    error?: { message?: string; status?: string };
   };
+  recordCall(calls, {
+    label: "Places searchNearby",
+    api: "PLACES",
+    method: "POST",
+    url: PLACES_URL,
+    status: response.status,
+    request: jsonBlock({ headers: { "X-Goog-FieldMask": fieldMask }, body }, apiKey),
+    response: jsonBlock(placesSummary(payload), apiKey),
+  });
+  if (!response.ok) {
+    throw new StorePlanError("Nearby competitor search failed");
+  }
   const places: PlaceRow[] = [];
   for (const place of payload.places ?? []) {
     const name = place.displayName?.text;
@@ -205,11 +256,21 @@ async function nearbyCompetitors(
 }
 
 async function driveTo(
-  originLat: number,
-  originLng: number,
+  origin: { name: string; lat: number; lng: number },
   destination: { lat: number; lng: number },
   apiKey: string,
+  calls: PlanApiCall[],
 ): Promise<DriveHit | undefined> {
+  const body = {
+    origin: { location: { latLng: { latitude: origin.lat, longitude: origin.lng } } },
+    destination: {
+      location: { latLng: { latitude: destination.lat, longitude: destination.lng } },
+    },
+    travelMode: "DRIVE",
+    routingPreference: "TRAFFIC_UNAWARE",
+    computeAlternativeRoutes: false,
+    units: "METRIC",
+  };
   const response = await fetch(ROUTES_URL, {
     method: "POST",
     headers: {
@@ -217,17 +278,25 @@ async function driveTo(
       "X-Goog-Api-Key": apiKey,
       "X-Goog-FieldMask": FIELD_MASK,
     },
-    body: JSON.stringify({
-      origin: { location: { latLng: { latitude: originLat, longitude: originLng } } },
-      destination: {
-        location: { latLng: { latitude: destination.lat, longitude: destination.lng } },
-      },
-      travelMode: "DRIVE",
-      routingPreference: "TRAFFIC_UNAWARE",
-      computeAlternativeRoutes: false,
-      units: "METRIC",
-    }),
+    body: JSON.stringify(body),
     signal: AbortSignal.timeout(15_000),
+  });
+  const payload = (await readJson(response)) as {
+    routes?: Array<{
+      distanceMeters?: number;
+      duration?: string;
+      polyline?: { encodedPolyline?: string };
+    }>;
+    error?: { message?: string; status?: string };
+  };
+  recordCall(calls, {
+    label: `Routes computeRoutes · ${origin.name}`.slice(0, 200),
+    api: "ROUTES",
+    method: "POST",
+    url: ROUTES_URL,
+    status: response.status,
+    request: jsonBlock({ headers: { "X-Goog-FieldMask": FIELD_MASK }, body }, apiKey),
+    response: jsonBlock(routesSummary(payload), apiKey),
   });
   if (response.status === 404) {
     return undefined;
@@ -235,13 +304,6 @@ async function driveTo(
   if (!response.ok) {
     throw new StorePlanError("A driving-route request failed");
   }
-  const payload = (await response.json()) as {
-    routes?: Array<{
-      distanceMeters?: number;
-      duration?: string;
-      polyline?: { encodedPolyline?: string };
-    }>;
-  };
   const route = payload.routes?.[0];
   const durationSeconds = typeof route?.duration === "string" ? parseDurationSeconds(route.duration) : undefined;
   if (
@@ -344,6 +406,18 @@ function qualifiedDataset(): { project: string; dataset: string } {
     throw new StorePlanError("BigQuery project or dataset is not valid");
   }
   return { project, dataset };
+}
+
+async function readJson(response: Response): Promise<unknown> {
+  const raw = await response.text();
+  if (raw.length === 0) {
+    return {};
+  }
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch {
+    return { raw: raw.slice(0, 2_000) };
+  }
 }
 
 function cell(

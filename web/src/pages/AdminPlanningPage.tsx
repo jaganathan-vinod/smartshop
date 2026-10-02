@@ -1,17 +1,24 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import type { FormEvent } from "react";
+import type { PlanApiCall, PlanChoice } from "@smartshop/shared";
 import { createAgentSession, sendAgentMessage } from "../api";
 import { loadConfig } from "../config";
 
 const PlanMap = lazy(() => import("./PlanMap").then((module) => ({ default: module.PlanMap })));
 
-type ChatLine = { role: "user" | "agent"; text: string };
+type PlanView = {
+  address: string;
+  choices: PlanChoice[];
+  selectedId: string;
+};
 
 export function AdminPlanningPage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [lines, setLines] = useState<ChatLine[]>([]);
   const [draft, setDraft] = useState("");
-  const [routeGeojson, setRouteGeojson] = useState<string | null>(null);
+  const [plan, setPlan] = useState<PlanView | null>(null);
+  const [fallbackGeojson, setFallbackGeojson] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [trace, setTrace] = useState<PlanApiCall[]>([]);
   const [mapsKey, setMapsKey] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -35,13 +42,20 @@ export function AdminPlanningPage() {
     }
     setBusy(true);
     setError(null);
-    setLines((current) => [...current, { role: "user", text }]);
     setDraft("");
     try {
       const turn = await sendAgentMessage(sessionId, text);
-      setLines((current) => [...current, { role: "agent", text: turn.reply }]);
-      if (turn.routeGeojson) {
-        setRouteGeojson(turn.routeGeojson);
+      const choices = turn.choices ?? [];
+      const first = choices[0];
+      setTrace(turn.trace ?? []);
+      if (first) {
+        setNotice(null);
+        setFallbackGeojson(null);
+        setPlan({ address: text, choices, selectedId: first.id });
+      } else {
+        setPlan(null);
+        setFallbackGeojson(turn.routeGeojson ?? null);
+        setNotice(turn.reply);
       }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not plan that address");
@@ -50,23 +64,51 @@ export function AdminPlanningPage() {
     }
   }
 
+  const selected = plan?.choices.find((choice) => choice.id === plan.selectedId) ?? plan?.choices[0];
+  const ownStore = plan?.choices.find((choice) => choice.subjectKind === "CURRENT_STORE");
+  const competitors = plan?.choices.filter((choice) => choice.subjectKind === "COMPETITOR") ?? [];
+
   return (
+    <>
     <section className="plan-page">
       <div className="plan-chat">
         <header className="hero">
           <h1>Store planning</h1>
           <p className="lede">
-            Ask for a candidate address. The reply compares current stores and nearby competitors by drive time.
+            The map opens on the nearest SmartShop store. Choose a competitor to draw that route instead.
           </p>
         </header>
         {error ? <p className="flash error">{error}</p> : null}
-        <ol className="plan-log">
-          {lines.map((line, index) => (
-            <li key={`${line.role}-${index}`} className={line.role}>
-              {line.text}
-            </li>
-          ))}
-        </ol>
+        {plan ? <p className="muted">Candidate {plan.address}</p> : null}
+        {notice ? <p className="plan-notice">{notice}</p> : null}
+        {ownStore ? (
+          <div className="plan-group">
+            <h2>Our store</h2>
+            <ChoiceButton
+              choice={ownStore}
+              selected={selected?.id === ownStore.id}
+              onSelect={() => setPlan((current) => (current ? { ...current, selectedId: ownStore.id } : current))}
+            />
+          </div>
+        ) : null}
+        {competitors.length > 0 ? (
+          <div className="plan-group">
+            <h2>Competitors</h2>
+            <ul className="plan-choices">
+              {competitors.map((choice) => (
+                <li key={choice.id}>
+                  <ChoiceButton
+                    choice={choice}
+                    selected={selected?.id === choice.id}
+                    onSelect={() =>
+                      setPlan((current) => (current ? { ...current, selectedId: choice.id } : current))
+                    }
+                  />
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         <form onSubmit={(event) => void onSubmit(event)}>
           <label>
             Candidate address
@@ -83,14 +125,76 @@ export function AdminPlanningPage() {
         </form>
       </div>
       <div className="plan-map-wrap">
-        {routeGeojson ? (
+        {selected ? (
           <Suspense fallback={<p className="muted">Loading map…</p>}>
-            <PlanMap mapsKey={mapsKey} routeGeojson={routeGeojson} />
+            <p className="muted plan-map-caption">{selected.subjectName}</p>
+            <PlanMap mapsKey={mapsKey} routeGeojson={selected.routeGeojson} />
+          </Suspense>
+        ) : fallbackGeojson ? (
+          <Suspense fallback={<p className="muted">Loading map…</p>}>
+            <PlanMap mapsKey={mapsKey} routeGeojson={fallbackGeojson} />
           </Suspense>
         ) : (
           <p className="muted">A map appears after a plan has driving routes.</p>
         )}
       </div>
     </section>
+    {trace.length > 0 ? <PlanTrace calls={trace} /> : null}
+    </>
+  );
+}
+
+function PlanTrace({ calls }: { calls: PlanApiCall[] }) {
+  return (
+    <details className="plan-trace">
+      <summary>How this plan was computed</summary>
+      <p className="muted">
+        Geocoding turns the address into a point. Places searchNearby finds grocery competitors within 3 km.
+        Routes computeRoutes then drives from each SmartShop store and each competitor to that point. The API key
+        is omitted.
+      </p>
+      {calls.map((call, index) => (
+        <details key={`${call.api}-${index}`} className="plan-trace-call">
+          <summary>
+            {call.label} · HTTP {call.status}
+          </summary>
+          <p>
+            <code>
+              {call.method} {call.url}
+            </code>
+          </p>
+          <h3>Request</h3>
+          <pre>{call.request}</pre>
+          <h3>Response</h3>
+          <pre>{call.response}</pre>
+        </details>
+      ))}
+    </details>
+  );
+}
+
+function ChoiceButton({
+  choice,
+  selected,
+  onSelect,
+}: {
+  choice: PlanChoice;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const km = (choice.distanceMeters / 1000).toFixed(1);
+  const minutes = Math.max(1, Math.round(choice.durationSeconds / 60));
+  return (
+    <button
+      type="button"
+      className={selected ? "plan-choice is-selected" : "plan-choice"}
+      aria-pressed={selected}
+      onClick={onSelect}
+    >
+      <span>{choice.subjectName}</span>
+      <span>
+        {km} km · {minutes} min
+      </span>
+    </button>
   );
 }
