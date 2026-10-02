@@ -44,6 +44,87 @@ A standard order omits `deliveryAddress` and `expressRouteId`.
     "lng": -122.276,
     "active": true,
     "updated_at": "2026-10-02T00:00:00Z"
+  },
+  {
+    "store_id": "store_sg_orchard",
+    "name": "SmartShop Orchard",
+    "address": "391 Orchard Rd, Singapore 238872",
+    "lat": 1.3026,
+    "lng": 103.834,
+    "active": true,
+    "updated_at": "2026-10-02T00:00:00Z"
+  },
+  {
+    "store_id": "store_sg_marina",
+    "name": "SmartShop Marina Bay",
+    "address": "10 Bayfront Ave, Singapore 018956",
+    "lat": 1.2839,
+    "lng": 103.8608,
+    "active": true,
+    "updated_at": "2026-10-02T00:00:00Z"
+  },
+  {
+    "store_id": "store_sg_tampines",
+    "name": "SmartShop Tampines",
+    "address": "4 Tampines Central 5, Singapore 529510",
+    "lat": 1.3525,
+    "lng": 103.9446,
+    "active": true,
+    "updated_at": "2026-10-02T00:00:00Z"
+  },
+  {
+    "store_id": "store_my_klcc",
+    "name": "SmartShop KLCC",
+    "address": "Kuala Lumpur City Centre, 50088 Kuala Lumpur, Malaysia",
+    "lat": 3.1579,
+    "lng": 101.7123,
+    "active": true,
+    "updated_at": "2026-10-02T00:00:00Z"
+  },
+  {
+    "store_id": "store_my_bukit_bintang",
+    "name": "SmartShop Bukit Bintang",
+    "address": "168 Jalan Bukit Bintang, 55100 Kuala Lumpur, Malaysia",
+    "lat": 3.149,
+    "lng": 101.7134,
+    "active": true,
+    "updated_at": "2026-10-02T00:00:00Z"
+  },
+  {
+    "store_id": "store_my_penang",
+    "name": "SmartShop Gurney",
+    "address": "170 Persiaran Gurney, 10250 George Town, Penang, Malaysia",
+    "lat": 5.438,
+    "lng": 100.3096,
+    "active": true,
+    "updated_at": "2026-10-02T00:00:00Z"
+  },
+  {
+    "store_id": "store_id_jakarta_thamrin",
+    "name": "SmartShop Thamrin",
+    "address": "Jl. M.H. Thamrin No.1, Jakarta 10310, Indonesia",
+    "lat": -6.1952,
+    "lng": 106.8219,
+    "active": true,
+    "updated_at": "2026-10-02T00:00:00Z"
+  },
+  {
+    "store_id": "store_id_jakarta_senayan",
+    "name": "SmartShop Senayan",
+    "address": "Jl. Asia Afrika No.8, Jakarta 10270, Indonesia",
+    "lat": -6.2256,
+    "lng": 106.7991,
+    "active": true,
+    "updated_at": "2026-10-02T00:00:00Z"
+  },
+  {
+    "store_id": "store_id_bali_kuta",
+    "name": "SmartShop Kuta",
+    "address": "Jl. Pantai Kuta, Badung, Bali 80361, Indonesia",
+    "lat": -8.7165,
+    "lng": 115.1688,
+    "active": true,
+    "updated_at": "2026-10-02T00:00:00Z"
   }
 ]
 ```
