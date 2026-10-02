@@ -30,7 +30,9 @@ on the web **and** through the assistant (typed chat, spoken turns, or a product
 | **Visitor** | Unauthenticated person. May browse and search the catalogue. Cannot mutate a cart or place an order. |
 | **Customer** | Shopper with a Cognito User Pool account (email + password). May have `isPremium`. Owns a server-side cart and order history. |
 | **Admin** | Cognito group `admin`. Creates/updates products and toggles premium flags via API (Postman/curl). Phase 7 adds a **generated executive dashboard** builder only — not a merchant product-CRUD UI. |
-| **Assistant** | Amazon Bedrock AgentCore Runtime (text, voice, image) acting **as the signed-in customer**. Tools call SmartShop over IAM service-to-service with `userId` injected from the Cognito JWT. Cannot bypass confirmation, invent prices, or call admin APIs. |
+| **Operations** | Cognito group `admin`. Uses the store-planning menu to see current stores, nearby competitors, and drive times. Does not place an order or edit the catalogue. |
+| **Marketing** | Cognito group `admin`. Uses a catalogue agent to produce still images and short videos for review. Does not publish them to the storefront and does not cart, quote, or confirm. |
+| **Assistant** | Amazon Bedrock AgentCore Runtime (text, voice, image) acting **as the signed-in customer**. Tools call SmartShop over IAM service-to-service with `userId` injected from the Cognito JWT. Cannot bypass confirmation, invent prices, or call admin APIs. Does not call the store-planning, image, or video tools. |
 
 ## 5. Customer capabilities
 
@@ -122,7 +124,21 @@ Phase 5 (AgentCore assistant) is additive. It must not change catalogue, cart, c
 
 Phase 7 (admin dashboard builder) is a **separate** additive surface. It uses the Cursor SDK, not AgentCore. It must not change shopping, assistant tools, or existing `/v1/admin/products` contracts. Dashboards read orders/catalogue/users; they do not invent metrics. Details: [project-technical-requirements.md](project-technical-requirements.md) §2.5 and [US-7.07](usecase-stories/phase-7-admin-dashboard.md).
 
-## 12. Out of scope for v1
+## 12. Location and marketing
+
+Checkout stays simulated. Standard delivery stays $4.99 and 3–5 days, with no address. Express stays $12.99 and 1–2 days. Drive time does not change that promise. Operations and Marketing both use the existing `admin` group. No new login group.
+
+**UC-1 Express route at checkout (Customer).** When the customer chooses express, they enter a delivery address. SmartShop geocodes it, asks for driving time from each current store, and keeps the store with the shortest drive. That path, distance, and duration are copied onto the order at confirm, the same way prices are snapshotted. After the order exists, the customer opens it and sees that stored route on a map. If geocoding or routing fails, express confirm does not create an order.
+
+**UC-2 Store map and site planning (Operations).** A new admin menu shows current stores on a map. For a candidate address, the same menu shows nearby competitors and drive time from those competitors and from current stores. Population is out of this cut. Nothing here places an order or edits the catalogue.
+
+**UC-3 Catalogue marketing images (Marketing).** A marketing operator chats with an agent that can only use the existing catalogue and the operator’s written guidance. The agent returns image concepts and generated images for review. Images are not published to the storefront. This agent is not the shopping assistant.
+
+**UC-4 Catalogue marketing video (Marketing).** The same marketing operator, in a separate flow, asks that agent for a short marketing video from the guidance and one or more catalogue products. The agent returns a video for review. The video is not published to the storefront. Still images stay in UC-3. The shopping assistant cannot start this flow.
+
+Stories: [usecase-stories/location-express-route.md](usecase-stories/location-express-route.md), [usecase-stories/location-store-planning.md](usecase-stories/location-store-planning.md), [usecase-stories/marketing-catalogue-images.md](usecase-stories/marketing-catalogue-images.md), [usecase-stories/marketing-catalogue-video.md](usecase-stories/marketing-catalogue-video.md).
+
+## 13. Out of scope for v1
 
 - Real payments and refunds
 - Merchant product-CRUD UI (admin product/premium APIs stay curl/Postman; Phase 7 is generated dashboards only)
@@ -138,7 +154,7 @@ Phase 7 (admin dashboard builder) is a **separate** additive surface. It uses th
 - Google / social identity providers
 - Forgot-password and profile-edit UI (Cognito console can reset passwords for demos)
 
-## 13. Related documents
+## 14. Related documents
 
 - [project-technical-requirements.md](project-technical-requirements.md)
 - [usecase-stories/](usecase-stories/)

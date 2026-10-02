@@ -25,6 +25,9 @@ const AdminMapPage = lazy(() =>
 const AdminPlanningPage = lazy(() =>
   import("./pages/AdminPlanningPage").then((module) => ({ default: module.AdminPlanningPage })),
 );
+const AdminMarketingPage = lazy(() =>
+  import("./pages/AdminMarketingPage").then((module) => ({ default: module.AdminMarketingPage })),
+);
 
 export function App() {
   return (
@@ -54,6 +57,14 @@ export function App() {
                     element={
                       <Suspense fallback={<p className="lede">Loading planning…</p>}>
                         <AdminPlanningPage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/admin/marketing"
+                    element={
+                      <Suspense fallback={<p className="lede">Loading marketing…</p>}>
+                        <AdminMarketingPage />
                       </Suspense>
                     }
                   />

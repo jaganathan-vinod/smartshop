@@ -9,7 +9,7 @@ Companion to the business use cases. Shopping stays on the existing CloudFront S
 | UC-3 Catalogue marketing images | [uc-3-marketing-images.md](uc-3-marketing-images.md) |
 | UC-4 Catalogue marketing video | [uc-4-marketing-video.md](uc-4-marketing-video.md) |
 
-UC-1, UC-2, and UC-3 are built and deployed. UC-4 is designed and not started. UC-2 and UC-3 share the admin Planning page. Express checkout does not go through that chat. A later Vertex Agent Builder session can replace the in-process planner and image branch. The session endpoints already match that contract.
+UC-1, UC-2, UC-3, and UC-4 are built. Store planning stays on the Planning page. Catalogue images and video stay on the Marketing page. Express checkout does not go through either chat. A later Vertex Agent Builder session can replace the in-process planner and image branch. The session endpoints already match that contract.
 
 ## Status
 
@@ -18,7 +18,7 @@ UC-1, UC-2, and UC-3 are built and deployed. UC-4 is designed and not started. U
 | UC-1 Express route | Built. Geocode, Routes, BigQuery insert, order map, and a saved Google call trace. |
 | UC-2 Store planning | Built. Lambda planner, selectable single-route map, Places and Routes trace. |
 | UC-3 Catalogue images | Built. Catalogue sync, Gemini stills, Cloud Storage, review row. Live Imagen 3 calls returned HTTP 404; the model switch is deployed. A successful Gemini image on the live site is not yet confirmed. |
-| UC-4 Catalogue video | Not built. |
+| UC-4 Catalogue video | Built on the Marketing page. Veo 3.1 starts a job and the page polls until the clip is ready for review. |
 
 ## Findings
 

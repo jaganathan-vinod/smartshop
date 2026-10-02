@@ -1,4 +1,5 @@
 const IMAGE_REQUEST = /\b(image|images|poster|photo|picture|render|visual|artwork|creative)\b/i;
+const VIDEO_REQUEST = /\b(video|videos|clip|reel|animation)\b/i;
 
 export type CatalogueProduct = {
   productId: string;
@@ -11,6 +12,10 @@ export type CatalogueProduct = {
 
 export function isImageRequest(text: string): boolean {
   return IMAGE_REQUEST.test(text);
+}
+
+export function isVideoRequest(text: string): boolean {
+  return VIDEO_REQUEST.test(text);
 }
 
 export function matchCatalogueProducts(
@@ -34,6 +39,22 @@ export function imagenPrompt(guidance: string, products: CatalogueProduct[]): st
   });
   return [
     "Catalogue marketing still photograph for SmartShop.",
+    "Products:",
+    lines.join("\n"),
+    `Guidance: ${guidance}`,
+    "No text, logos, or watermarks unless the guidance asks for them.",
+  ].join("\n");
+}
+
+export function videoPrompt(guidance: string, products: CatalogueProduct[]): string {
+  const lines = products.map((product) => {
+    const description = product.description.trim().slice(0, 400);
+    return [`- ${product.name}`, description ? `  Description: ${description}` : ""]
+      .filter((line) => line.length > 0)
+      .join("\n");
+  });
+  return [
+    "Short SmartShop catalogue marketing video, about six seconds, no voiceover.",
     "Products:",
     lines.join("\n"),
     `Guidance: ${guidance}`,

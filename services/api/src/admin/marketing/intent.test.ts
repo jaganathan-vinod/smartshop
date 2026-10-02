@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   imagenPrompt,
   isImageRequest,
+  isVideoRequest,
   matchCatalogueProducts,
   type CatalogueProduct,
 } from "./intent.js";
@@ -22,6 +23,8 @@ describe("isImageRequest", () => {
     assert.equal(isImageRequest("poster for the mechanical keyboard"), true);
     assert.equal(isImageRequest("punggol"), false);
     assert.equal(isImageRequest("391 Orchard Rd, Singapore"), false);
+    assert.equal(isVideoRequest("video of the Ceramic Mug"), true);
+    assert.equal(isVideoRequest("image of the Ceramic Mug"), false);
   });
 });
 

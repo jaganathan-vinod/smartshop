@@ -83,6 +83,8 @@ describe("admin agent sessions", () => {
     await runWithClaims({ sub: "admin-1", groups: ["admin"] }, async () => {
       const created = await hono.request("http://localhost/v1/admin/agent/sessions", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind: "marketing" }),
       });
       const session = (await created.json()) as { sessionId: string };
       const message = await hono.request(
@@ -98,6 +100,43 @@ describe("admin agent sessions", () => {
       assert.equal(turn.assetId, "asset_testimage01");
       assert.match(turn.reply, /Ceramic Mug/);
       assert.equal(turn.routeGeojson, undefined);
+    });
+  });
+
+  it("starts a review video on a marketing session and keeps planning on addresses", async () => {
+    const hono = new Hono();
+    let planned = false;
+    registerAdminAgentRoutes(hono, {
+      plan: async () => {
+        planned = true;
+        return { reply: "Nearest current store: SmartShop Orchard." };
+      },
+      video: async () => ({
+        reply: "Video started for review. Products: Ceramic Mug.",
+        assetId: "asset_testvideo01",
+        assetKind: "VIDEO",
+        assetStatus: "GENERATING",
+      }),
+    });
+    await runWithClaims({ sub: "admin-1", groups: ["admin"] }, async () => {
+      const created = await hono.request("http://localhost/v1/admin/agent/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind: "marketing" }),
+      });
+      const session = (await created.json()) as { sessionId: string };
+      const message = await hono.request(
+        `http://localhost/v1/admin/agent/sessions/${session.sessionId}/messages`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: "video of the Ceramic Mug" }),
+        },
+      );
+      const turn = (await message.json()) as { assetId?: string; assetStatus?: string };
+      assert.equal(turn.assetId, "asset_testvideo01");
+      assert.equal(turn.assetStatus, "GENERATING");
+      assert.equal(planned, false);
     });
   });
 });

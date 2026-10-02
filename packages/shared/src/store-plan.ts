@@ -6,6 +6,14 @@ export const agentSessionIdSchema = z
   .max(80)
   .regex(/^[A-Za-z0-9_-]+$/, "Invalid session id");
 
+export const agentSessionKindSchema = z.enum(["planning", "marketing"]);
+
+export type AgentSessionKind = z.infer<typeof agentSessionKindSchema>;
+
+export const createAgentSessionRequestSchema = z.object({
+  kind: agentSessionKindSchema.optional(),
+});
+
 export const createAgentSessionResponseSchema = z.object({
   sessionId: agentSessionIdSchema,
 });
@@ -29,7 +37,7 @@ export type PlanChoice = z.infer<typeof planChoiceSchema>;
 
 export const planApiCallSchema = z.object({
   label: z.string().min(1).max(200),
-  api: z.enum(["GEOCODE", "PLACES", "ROUTES", "IMAGEN"]),
+  api: z.enum(["GEOCODE", "PLACES", "ROUTES", "IMAGEN", "VEO"]),
   method: z.enum(["GET", "POST"]),
   url: z.string().min(1).max(2000),
   status: z.number().int().nonnegative(),
@@ -48,6 +56,8 @@ export const agentTurnSchema = z.object({
   choices: z.array(planChoiceSchema).optional(),
   trace: z.array(planApiCallSchema).max(40).optional(),
   assetId: z.string().min(8).max(80).regex(/^[A-Za-z0-9_-]+$/).optional(),
+  assetKind: z.enum(["IMAGE", "VIDEO"]).optional(),
+  assetStatus: z.enum(["GENERATING", "REVIEW", "FAILED"]).optional(),
 });
 
 export type AgentTurn = z.infer<typeof agentTurnSchema>;
@@ -60,6 +70,8 @@ export const agentSessionMessageSchema = z.object({
   choices: z.array(planChoiceSchema).optional(),
   trace: z.array(planApiCallSchema).max(40).optional(),
   assetId: z.string().min(8).max(80).regex(/^[A-Za-z0-9_-]+$/).optional(),
+  assetKind: z.enum(["IMAGE", "VIDEO"]).optional(),
+  assetStatus: z.enum(["GENERATING", "REVIEW", "FAILED"]).optional(),
 });
 
 export type AgentSessionMessage = z.infer<typeof agentSessionMessageSchema>;

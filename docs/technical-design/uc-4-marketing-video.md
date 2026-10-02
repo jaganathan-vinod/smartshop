@@ -1,6 +1,6 @@
 # UC-4 — Catalogue marketing video
 
-**Status:** designed, not built.  
+**Status:** built on `/admin/marketing`.  
 **Actor:** Marketing (Cognito group `admin`)  
 **Goal:** In the same admin chat, generate a short marketing video from catalogue products and the operator’s guidance, then hold it for review.
 
@@ -16,7 +16,7 @@ Still images stay in UC-3. The video is not published to the storefront. The sho
 6. The worker writes the MP4 to Cloud Storage, sets `gcs_uri`, and sets `status = REVIEW`.
 7. The SPA plays it through `GET /v1/admin/marketing/assets/{assetId}`.
 
-Veo does not run inside the API Gateway or Lambda timeout. The Lambda only starts the session turn and reads status.
+This cut starts `veo-3.1-generate-001` in `us-central1` with `:predictLongRunning`, stores the MP4 under `gs://smartshop-marketing/videos/{assetId}/`, and writes `marketing.assets` with `kind = VIDEO`. The message returns while `status = GENERATING`. `GET /v1/admin/agent/sessions/{sessionId}` polls the operation. A marketing session is separate from store planning. `VEO_MODEL` and `VEO_LOCATION` override the model and location.
 
 ## DynamoDB
 

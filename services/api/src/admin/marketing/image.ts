@@ -123,7 +123,7 @@ export async function loadMarketingPng(assetId: string): Promise<Buffer | null> 
   return Buffer.from(await response.arrayBuffer());
 }
 
-async function syncCatalogue(): Promise<CatalogueProduct[]> {
+export async function syncCatalogue(): Promise<CatalogueProduct[]> {
   const products = (await listAllProducts())
     .filter((product) => product.active)
     .map((product) => ({

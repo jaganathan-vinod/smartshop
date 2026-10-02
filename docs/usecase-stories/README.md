@@ -13,6 +13,10 @@ Each story uses: ID, title, actor, story, preconditions, main flow, acceptance c
 | 6 Hardening | [phase-6-hardening.md](phase-6-hardening.md) |
 | 7 Admin dashboard builder (Cursor SDK) | [phase-7-admin-dashboard.md](phase-7-admin-dashboard.md) |
 | Dashboard v2 | [dashboard-v2.md](dashboard-v2.md) |
+| UC-1 Express route | [location-express-route.md](location-express-route.md) |
+| UC-2 Store planning | [location-store-planning.md](location-store-planning.md) |
+| UC-3 Catalogue images | [marketing-catalogue-images.md](marketing-catalogue-images.md) |
+| UC-4 Catalogue video | [marketing-catalogue-video.md](marketing-catalogue-video.md) |
 
 Business rules: [../project-business-requirements.md](../project-business-requirements.md)  
 Technical design: [../project-technical-requirements.md](../project-technical-requirements.md)

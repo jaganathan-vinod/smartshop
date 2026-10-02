@@ -231,8 +231,13 @@ export function listRouteMap(): Promise<RouteMapResponse> {
   return request("/v1/admin/routes");
 }
 
-export function createAgentSession(): Promise<{ sessionId: string }> {
-  return request("/v1/admin/agent/sessions", { method: "POST" });
+export function createAgentSession(
+  kind: "planning" | "marketing" = "planning",
+): Promise<{ sessionId: string }> {
+  return request("/v1/admin/agent/sessions", {
+    method: "POST",
+    body: JSON.stringify({ kind }),
+  });
 }
 
 export function sendAgentMessage(sessionId: string, text: string): Promise<AgentTurn> {
@@ -250,7 +255,7 @@ export async function getMarketingAsset(assetId: string): Promise<Blob> {
     { headers },
   );
   if (!response.ok) {
-    throw new ApiRequestError(response.status, "ASSET_FAILED", "Could not load the marketing image");
+    throw new ApiRequestError(response.status, "ASSET_FAILED", "Could not load the marketing asset");
   }
   return response.blob();
 }

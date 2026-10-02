@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import type { PlanApiCall, PlanChoice } from "@smartshop/shared";
-import { createAgentSession, getMarketingAsset, sendAgentMessage } from "../api";
+import { createAgentSession, sendAgentMessage } from "../api";
 import { loadConfig } from "../config";
 import { GoogleCallTrace } from "./GoogleCallTrace";
 
@@ -20,7 +20,6 @@ export function AdminPlanningPage() {
   const [fallbackGeojson, setFallbackGeojson] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [trace, setTrace] = useState<PlanApiCall[]>([]);
-  const [assetId, setAssetId] = useState<string | null>(null);
   const [mapsKey, setMapsKey] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -29,7 +28,7 @@ export function AdminPlanningPage() {
     loadConfig()
       .then((config) => setMapsKey(config.mapsBrowserKey))
       .catch(() => setMapsKey(""));
-    createAgentSession()
+    createAgentSession("planning")
       .then((session) => setSessionId(session.sessionId))
       .catch((caught: unknown) => {
         setError(caught instanceof Error ? caught.message : "Could not start planning");
@@ -50,12 +49,7 @@ export function AdminPlanningPage() {
       const choices = turn.choices ?? [];
       const first = choices[0];
       setTrace(turn.trace ?? []);
-      setAssetId(turn.assetId ?? null);
-      if (turn.assetId) {
-        setNotice(turn.reply);
-        setFallbackGeojson(null);
-        setPlan(null);
-      } else if (first) {
+      if (first) {
         setNotice(null);
         setFallbackGeojson(null);
         setPlan({ address: text, choices, selectedId: first.id });
@@ -83,7 +77,7 @@ export function AdminPlanningPage() {
           <h1>Store planning</h1>
           <p className="lede">
             The map opens on the nearest SmartShop store. Choose a competitor to draw that route instead.
-            Ask for a catalogue image, for example “image of Ceramic Mug on a wood table”.
+            Catalogue images and video are on Marketing.
           </p>
         </header>
         {error ? <p className="flash error">{error}</p> : null}
@@ -133,9 +127,7 @@ export function AdminPlanningPage() {
         </form>
       </div>
       <div className="plan-map-wrap">
-        {assetId ? (
-          <MarketingAsset assetId={assetId} />
-        ) : selected ? (
+        {selected ? (
           <Suspense fallback={<p className="muted">Loading map…</p>}>
             <p className="muted plan-map-caption">{selected.subjectName}</p>
             <PlanMap mapsKey={mapsKey} routeGeojson={selected.routeGeojson} />
@@ -156,43 +148,6 @@ export function AdminPlanningPage() {
     />
     </>
   );
-}
-
-function MarketingAsset({ assetId }: { assetId: string }) {
-  const [src, setSrc] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let objectUrl = "";
-    let cancelled = false;
-    getMarketingAsset(assetId)
-      .then((blob) => {
-        if (cancelled) {
-          return;
-        }
-        objectUrl = URL.createObjectURL(blob);
-        setSrc(objectUrl);
-      })
-      .catch((caught: unknown) => {
-        if (!cancelled) {
-          setError(caught instanceof Error ? caught.message : "Could not load the marketing image");
-        }
-      });
-    return () => {
-      cancelled = true;
-      if (objectUrl) {
-        URL.revokeObjectURL(objectUrl);
-      }
-    };
-  }, [assetId]);
-
-  if (error) {
-    return <p className="flash error">{error}</p>;
-  }
-  if (!src) {
-    return <p className="muted">Loading image…</p>;
-  }
-  return <img className="plan-asset" alt="Generated catalogue image" src={src} />;
 }
 
 function ChoiceButton({

@@ -7,8 +7,8 @@ Images are not written onto products and are not shown on the storefront. Video 
 
 ## Flow
 
-1. The operator uses the Planning session from UC-2.
-2. The message is an image request when it matches `\b(image|images|poster|photo|picture|render|visual|artwork|creative)\b`. Otherwise it stays a location plan.
+1. The operator opens `/admin/marketing`, which starts a marketing session. Store planning stays on `/admin/planning`.
+2. The message is an image request when it matches `\b(image|images|poster|photo|picture|render|visual|artwork|creative)\b`. A video request is UC-4. Other marketing text asks for an image or a short video.
 3. The Lambda replaces `marketing.catalogue_products` on that request: delete every row, then insert the active DynamoDB products.
 4. Up to four products match. A match is the full product name, or every word in the name that is at least four characters. An unknown product returns the active names and does not generate.
 5. The prompt includes each product name, up to 400 characters of description, the catalogue image URL as text, and the operator guidance. It asks for no text or logos unless the guidance asks. The model does not fetch that URL as a reference image.

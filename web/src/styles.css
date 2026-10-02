@@ -1807,6 +1807,10 @@ button.chat-send {
   border-radius: 0.8rem;
 }
 
+video.plan-asset {
+  background: #111;
+}
+
 .plan-map-wrap {
   min-height: 24rem;
 }
