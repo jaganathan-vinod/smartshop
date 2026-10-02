@@ -34,7 +34,7 @@ No API Gateway change. Paths sit on the existing admin JWT proxy.
 
 Imagen is called from Vertex, not from the browser and not as a new API Gateway integration.
 
-This cut runs image generation inside the API Lambda. An image request syncs active DynamoDB products into `marketing.catalogue_products`, calls Imagen with the product name, description, image URL, and guidance, stores the PNG in Cloud Storage, and inserts `marketing.assets`. A location question still uses the UC-2 planner. A later Agent Builder session can replace this branch.
+This cut runs image generation inside the API Lambda. An image request syncs active DynamoDB products into `marketing.catalogue_products`, calls `gemini-3.1-flash-image` on the global Vertex endpoint with the product name, description, image URL, and guidance, stores the PNG in Cloud Storage, and inserts `marketing.assets`. Imagen 3 publisher models were discontinued on 30 June 2026. A location question still uses the UC-2 planner. A later Agent Builder session can replace this branch.
 
 ## BigQuery
 

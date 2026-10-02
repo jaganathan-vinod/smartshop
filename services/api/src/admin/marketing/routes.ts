@@ -22,8 +22,9 @@ export function registerAdminMarketingRoutes(app: Hono): void {
       if (!png) {
         return jsonError(c, 404, "NOT_FOUND", "Marketing image not found");
       }
+      const contentType = png[0] === 0xff && png[1] === 0xd8 ? "image/jpeg" : "image/png";
       return c.body(new Uint8Array(png), 200, {
-        "Content-Type": "image/png",
+        "Content-Type": contentType,
         "Cache-Control": "private, max-age=300",
       });
     } catch (error) {

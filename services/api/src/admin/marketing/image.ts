@@ -12,8 +12,8 @@ import {
 const IDENTIFIER = /^[A-Za-z][A-Za-z0-9_-]{0,127}$/;
 const MODEL_NAME = /^[A-Za-z][A-Za-z0-9._-]{0,80}$/;
 const CLOUD_SCOPE = "https://www.googleapis.com/auth/cloud-platform";
-const IMAGEN_MODEL = process.env.IMAGEN_MODEL?.trim() || "imagen-3.0-generate-002";
-const VERTEX_LOCATION = process.env.VERTEX_LOCATION?.trim() || "us-central1";
+const IMAGEN_MODEL = process.env.IMAGEN_MODEL?.trim() || "gemini-3.1-flash-image";
+const VERTEX_LOCATION = process.env.VERTEX_LOCATION?.trim() || "global";
 
 export type MarketingImageResult = {
   reply: string;
@@ -165,10 +165,13 @@ async function syncCatalogue(): Promise<CatalogueProduct[]> {
 
 async function renderImage(prompt: string, calls: PlanApiCall[]): Promise<Buffer> {
   const { project } = marketingDataset();
-  const url = `https://${VERTEX_LOCATION}-aiplatform.googleapis.com/v1/projects/${encodeURIComponent(project)}/locations/${encodeURIComponent(VERTEX_LOCATION)}/publishers/google/models/${encodeURIComponent(IMAGEN_MODEL)}:predict`;
+  const url = `${vertexHost(VERTEX_LOCATION)}/v1/projects/${encodeURIComponent(project)}/locations/${encodeURIComponent(VERTEX_LOCATION)}/publishers/google/models/${encodeURIComponent(IMAGEN_MODEL)}:generateContent`;
   const request = {
-    instances: [{ prompt }],
-    parameters: { sampleCount: 1, aspectRatio: "1:1" },
+    contents: { role: "USER", parts: [{ text: prompt }] },
+    generationConfig: {
+      responseModalities: ["TEXT", "IMAGE"],
+      imageConfig: { aspectRatio: "1:1" },
+    },
   };
   const token = await googleAccessToken([CLOUD_SCOPE]);
   const response = await fetch(url, {
@@ -178,36 +181,49 @@ async function renderImage(prompt: string, calls: PlanApiCall[]): Promise<Buffer
       "Content-Type": "application/json",
     },
     body: JSON.stringify(request),
-    signal: AbortSignal.timeout(20_000),
+    signal: AbortSignal.timeout(25_000),
   });
   const payload = (await response.json()) as {
-    predictions?: Array<{ bytesBase64Encoded?: string; mimeType?: string }>;
+    candidates?: Array<{
+      content?: {
+        parts?: Array<{
+          inlineData?: { mimeType?: string; data?: string };
+          inline_data?: { mimeType?: string; data?: string };
+        }>;
+      };
+    }>;
     error?: { message?: string };
   };
-  const encoded = payload.predictions?.[0]?.bytesBase64Encoded;
+  const inline = payload.candidates
+    ?.flatMap((candidate) => candidate.content?.parts ?? [])
+    .map((part) => part.inlineData ?? part.inline_data)
+    .find((part) => part?.data);
   recordCall(calls, {
-    label: "Imagen predict",
+    label: "Gemini image generateContent",
     api: "IMAGEN",
     method: "POST",
     url,
     status: response.status,
-    request: jsonBlock(
-      { model: IMAGEN_MODEL, prompt, parameters: request.parameters },
-      "",
-    ),
+    request: jsonBlock({ model: IMAGEN_MODEL, prompt, generationConfig: request.generationConfig }, ""),
     response: jsonBlock(
       {
-        mimeType: payload.predictions?.[0]?.mimeType,
-        bytes: encoded ? Buffer.from(encoded, "base64").length : 0,
+        mimeType: inline?.mimeType,
+        bytes: inline?.data ? Buffer.from(inline.data, "base64").length : 0,
         error: payload.error?.message,
       },
       "",
     ),
   });
-  if (!response.ok || !encoded) {
-    throw new Error("Imagen did not return an image");
+  if (!response.ok || !inline?.data) {
+    throw new Error("Image generation did not return an image");
   }
-  return Buffer.from(encoded, "base64");
+  return Buffer.from(inline.data, "base64");
+}
+
+function vertexHost(location: string): string {
+  return location === "global"
+    ? "https://aiplatform.googleapis.com"
+    : `https://${location}-aiplatform.googleapis.com`;
 }
 
 async function uploadPng(bucket: string, objectName: string, png: Buffer): Promise<void> {
