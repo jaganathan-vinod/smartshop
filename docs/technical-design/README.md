@@ -8,6 +8,7 @@ Companion to the business use cases. Shopping stays on the existing CloudFront S
 | UC-2 Store planning | [uc-2-store-planning.md](uc-2-store-planning.md) |
 | UC-3 Catalogue marketing images | [uc-3-marketing-images.md](uc-3-marketing-images.md) |
 | UC-4 Catalogue marketing video | [uc-4-marketing-video.md](uc-4-marketing-video.md) |
+| UC-5 ADK agents on Agent Runtime | [uc-5-adk-agents.md](uc-5-adk-agents.md) |
 
 UC-1, UC-2, UC-3, and UC-4 are built. Store planning stays on the Planning page. Catalogue images and video stay on the Marketing page. Express checkout does not go through either chat. A later Vertex Agent Builder session can replace the in-process planner and image branch. The session endpoints already match that contract.
 
@@ -19,6 +20,7 @@ UC-1, UC-2, UC-3, and UC-4 are built. Store planning stays on the Planning page.
 | UC-2 Store planning | Built. Lambda planner, selectable single-route map, Places and Routes trace. |
 | UC-3 Catalogue images | Built. Catalogue sync, Gemini stills, Cloud Storage, review row. Live Imagen 3 calls returned HTTP 404; the model switch is deployed. A successful Gemini image on the live site is not yet confirmed. |
 | UC-4 Catalogue video | Built on the Marketing page. Veo 3.1 starts a job and the page polls until the clip is ready for review. |
+| UC-5 ADK agents | Six Agent Engines. The coordinator calls the five specialists over A2A. Source stays in `agents/uc5`. |
 
 ## Findings
 
