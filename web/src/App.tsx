@@ -28,6 +28,9 @@ const AdminPlanningPage = lazy(() =>
 const AdminMarketingPage = lazy(() =>
   import("./pages/AdminMarketingPage").then((module) => ({ default: module.AdminMarketingPage })),
 );
+const AdminGcpAgentsPage = lazy(() =>
+  import("./pages/AdminGcpAgentsPage").then((module) => ({ default: module.AdminGcpAgentsPage })),
+);
 
 export function App() {
   return (
@@ -65,6 +68,14 @@ export function App() {
                     element={
                       <Suspense fallback={<p className="lede">Loading marketing…</p>}>
                         <AdminMarketingPage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/admin/agents-gcp"
+                    element={
+                      <Suspense fallback={<p className="lede">Loading agents…</p>}>
+                        <AdminGcpAgentsPage />
                       </Suspense>
                     }
                   />

@@ -103,6 +103,7 @@ export function Layout() {
           {isAdmin ? <NavLink to="/admin/reports/v2">Report v2</NavLink> : null}
           {isAdmin ? <NavLink to="/admin/planning">Planning</NavLink> : null}
           {isAdmin ? <NavLink to="/admin/marketing">Marketing</NavLink> : null}
+          {isAdmin ? <NavLink to="/admin/agents-gcp">Agents-GCP</NavLink> : null}
           {isAdmin ? <NavLink to="/admin/map">Map</NavLink> : null}
           {user ? (
             <button

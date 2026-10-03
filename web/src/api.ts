@@ -11,6 +11,7 @@ import type {
   QuoteResponse,
   AgentSessionDetail,
   AgentTurn,
+  GcpAgentTurn,
   ReportJob,
   RouteMapResponse,
 } from "@smartshop/shared";
@@ -258,6 +259,13 @@ export async function getMarketingAsset(assetId: string): Promise<Blob> {
     throw new ApiRequestError(response.status, "ASSET_FAILED", "Could not load the marketing asset");
   }
   return response.blob();
+}
+
+export function askGcpAgent(text: string, sessionId?: string): Promise<GcpAgentTurn> {
+  return request("/v1/admin/gcp-agents/messages", {
+    method: "POST",
+    body: JSON.stringify(sessionId ? { text, sessionId } : { text }),
+  });
 }
 
 export function getAgentSession(sessionId: string): Promise<AgentSessionDetail> {
