@@ -1691,7 +1691,8 @@ button.chat-send {
 }
 
 .content:has(.route-map-page),
-.content:has(.plan-page) {
+.content:has(.plan-page),
+.content:has(.gcp-shell) {
   max-width: none;
 }
 
@@ -1750,23 +1751,120 @@ button.chat-send {
   background: #e8f0fe;
 }
 
-.gcp-agents {
-  max-width: 40rem;
+.gcp-shell {
+  display: grid;
+  grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr);
+  gap: 1.25rem;
+  min-height: 70vh;
+}
+
+.gcp-sessions {
+  display: grid;
+  align-content: start;
+  gap: 0.75rem;
+}
+
+.gcp-sessions nav {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.gcp-session {
+  display: grid;
+  gap: 0.2rem;
+  text-align: left;
+  color: inherit;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 0.7rem;
+  padding: 0.65rem 0.75rem;
+  text-decoration: none;
+}
+
+.gcp-session.is-active {
+  border-color: #1a73e8;
+  background: #e8f0fe;
+}
+
+.gcp-session small {
+  color: var(--muted, #5f6368);
+}
+
+.gcp-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 70vh;
 }
 
 .gcp-thread {
   display: grid;
+  align-content: start;
   gap: 0.75rem;
   margin: 1rem 0;
+  flex: 1;
 }
 
-.gcp-thread p {
+.gcp-thread p,
+.gcp-asset p {
   margin: 0;
   white-space: pre-wrap;
 }
 
+.gcp-user,
+.gcp-agent {
+  border: 1px solid var(--line);
+  border-radius: 0.8rem;
+  background: white;
+  padding: 0.75rem 0.9rem;
+}
+
 .gcp-user {
   font-weight: 600;
+}
+
+.gcp-asset img,
+.gcp-asset video,
+.gcp-expand img,
+.gcp-expand video {
+  display: block;
+  max-width: 100%;
+  margin-top: 0.6rem;
+  border-radius: 0.6rem;
+}
+
+.gcp-asset-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+
+.gcp-expand {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  max-width: calc(100vw - 2rem);
+}
+
+.gcp-expand::backdrop {
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.gcp-expand > div {
+  background: white;
+  border-radius: 0.8rem;
+  padding: 0.8rem;
+}
+
+.gcp-main form {
+  display: grid;
+  gap: 0.6rem;
+}
+
+@media (max-width: 800px) {
+  .gcp-shell {
+    grid-template-columns: 1fr;
+  }
 }
 
 .plan-notice {

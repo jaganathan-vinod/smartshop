@@ -12,6 +12,8 @@ from google.adk.agents import LlmAgent
 from google.auth import default
 from google.auth.transport.requests import Request
 
+from .surface import present_to_operator
+
 LOCATION = "us-central1"
 PROJECT = "project-fd286af4-b340-4967-86b"
 
@@ -103,8 +105,16 @@ root_agent = LlmAgent(
         "stock changes to inventory_agent, policies to standards_agent, "
         "and campaign stills or videos to marketing_agent. "
         "Each specialist is a separate agent reached over A2A. "
-        "Return one combined reply from the specialist result."
+        "After the specialist answers, call present_to_operator exactly once. "
+        "summary is the reply the operator should read. "
+        "If that result includes assetId, pass it as asset_id. "
+        "Use kind video when the result is a video or includes gcsPrefix, otherwise image. "
+        "Pass status REVIEW or GENERATING from the result. "
+        "If the specialist text contains a line ASSET <id> <image|video> <REVIEW|GENERATING>, "
+        "copy those three fields into the tool and keep that line in the summary. "
+        "Your final text must be the same summary the tool returns."
     ),
+    tools=[present_to_operator],
     sub_agents=[
         delivery_agent,
         insights_agent,

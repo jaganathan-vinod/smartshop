@@ -1,9 +1,11 @@
+import type { GcpAgentTurn } from "@smartshop/shared";
 import { googleAccessToken } from "../routes-map/client.js";
 import { routeMapConfig } from "../routes-map/query.js";
+import { turnFromAgentEvents } from "./surface.js";
 
 const CLOUD_SCOPE = "https://www.googleapis.com/auth/cloud-platform";
-const LOCATION = "us-central1";
-const ENGINE_ID = process.env.GCP_AGENT_ENGINE_ID?.trim() || "5576634465393836032";
+export const GCP_AGENT_LOCATION = "us-central1";
+export const GCP_AGENT_ENGINE_ID = process.env.GCP_AGENT_ENGINE_ID?.trim() || "5576634465393836032";
 const ASK_TIMEOUT_MS = 25_000;
 
 export class GcpAgentError extends Error {
@@ -32,14 +34,14 @@ export async function askGcpAgent(
   text: string,
   sessionId: string | undefined,
   fetchImpl: typeof fetch = fetch,
-): Promise<{ reply: string; sessionId: string }> {
+): Promise<GcpAgentTurn> {
   const token = await googleAccessToken([CLOUD_SCOPE]);
   const activeSession = sessionId ?? (await createSession(token, userId, fetchImpl));
-  const reply = await streamReply(token, userId, activeSession, text, fetchImpl);
-  if (!reply) {
+  const turn = await streamReply(token, userId, activeSession, text, fetchImpl);
+  if (!turn.reply) {
     throw new GcpAgentError("The agent returned no answer");
   }
-  return { reply, sessionId: activeSession };
+  return { reply: turn.reply, sessionId: activeSession, a2ui: turn.a2ui };
 }
 
 async function createSession(token: string, userId: string, fetchImpl: typeof fetch): Promise<string> {
@@ -57,7 +59,7 @@ async function streamReply(
   sessionId: string,
   text: string,
   fetchImpl: typeof fetch,
-): Promise<string> {
+): Promise<{ reply: string; a2ui: GcpAgentTurn["a2ui"] }> {
   const response = await postEngine(
     token,
     "streamQuery",
@@ -65,7 +67,7 @@ async function streamReply(
     "async_stream_query",
     fetchImpl,
   );
-  return replyFromAgentEvents(await response.text());
+  return turnFromAgentEvents(await response.text());
 }
 
 async function postJson(
@@ -87,7 +89,7 @@ async function postEngine(
   fetchImpl: typeof fetch,
 ): Promise<Response> {
   const { project } = routeMapConfig();
-  const url = `https://${LOCATION}-aiplatform.googleapis.com/v1/projects/${project}/locations/${LOCATION}/reasoningEngines/${ENGINE_ID}:${method}`;
+  const url = `https://${GCP_AGENT_LOCATION}-aiplatform.googleapis.com/v1/projects/${project}/locations/${GCP_AGENT_LOCATION}/reasoningEngines/${GCP_AGENT_ENGINE_ID}:${method}`;
   let response: Response;
   try {
     response = await fetchImpl(url, {

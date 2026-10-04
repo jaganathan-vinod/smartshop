@@ -80,6 +80,14 @@ export function App() {
                     }
                   />
                   <Route
+                    path="/admin/agents-gcp/:sessionId"
+                    element={
+                      <Suspense fallback={<p className="lede">Loading agents…</p>}>
+                        <AdminGcpAgentsPage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
                     path="/admin/map"
                     element={
                       <Suspense fallback={<p className="lede">Loading map…</p>}>

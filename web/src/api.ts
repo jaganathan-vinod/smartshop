@@ -12,6 +12,8 @@ import type {
   AgentSessionDetail,
   AgentTurn,
   GcpAgentTurn,
+  GcpAgentSession,
+  GcpAgentSessionSummary,
   ReportJob,
   RouteMapResponse,
 } from "@smartshop/shared";
@@ -266,6 +268,27 @@ export function askGcpAgent(text: string, sessionId?: string): Promise<GcpAgentT
     method: "POST",
     body: JSON.stringify(sessionId ? { text, sessionId } : { text }),
   });
+}
+
+export function listGcpAgentSessions(): Promise<{ sessions: GcpAgentSessionSummary[] }> {
+  return request("/v1/admin/gcp-agents/sessions");
+}
+
+export function getGcpAgentSession(sessionId: string): Promise<GcpAgentSession> {
+  return request(`/v1/admin/gcp-agents/sessions/${encodeURIComponent(sessionId)}`);
+}
+
+export async function getGcpAgentAsset(assetId: string): Promise<Blob> {
+  const config = await loadConfig();
+  const headers = await authHeaders();
+  const response = await fetch(
+    `${config.apiUrl}/v1/admin/gcp-agents/assets/${encodeURIComponent(assetId)}`,
+    { headers },
+  );
+  if (!response.ok) {
+    throw new ApiRequestError(response.status, "ASSET_FAILED", "Could not load the asset");
+  }
+  return response.blob();
 }
 
 export function getAgentSession(sessionId: string): Promise<AgentSessionDetail> {
