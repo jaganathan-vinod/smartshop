@@ -63,7 +63,7 @@ function AssetCard({
         }
         const missing = caught instanceof ApiRequestError && caught.status === 404;
         if (status === "GENERATING" && missing && Date.now() - started < VIDEO_WAIT_MS) {
-          setNote("The video is generating.");
+          setNote(statusLabel(kind, "GENERATING"));
           timer = window.setTimeout(() => {
             void load();
           }, POLL_MS);

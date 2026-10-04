@@ -1856,9 +1856,14 @@ button.chat-send {
   padding: 0.8rem;
 }
 
-.gcp-main form {
-  display: grid;
-  gap: 0.6rem;
+.gcp-chat {
+  flex: 1;
+  min-height: 32rem;
+  height: calc(100vh - 12rem);
+}
+
+.gcp-chat [data-copilotkit] {
+  height: 100%;
 }
 
 @media (max-width: 800px) {

@@ -387,6 +387,55 @@ export class SmartShopStack extends Stack {
       alarmDescription: "SmartShop HTTP API 5xx responses",
     });
 
+    const aguiLogGroup = new logs.LogGroup(this, "AguiStreamFnLogs", {
+      retention: logs.RetentionDays.TWO_WEEKS,
+      removalPolicy: RemovalPolicy.DESTROY,
+    });
+    const aguiFn = new NodejsFunction(this, "AguiStreamFn", {
+      functionName: "smartshop-agui-stream",
+      entry: path.join(repoRoot, "services/api/src/admin/gcp-agent/agui-stream.ts"),
+      handler: "handler",
+      runtime: lambda.Runtime.NODEJS_22_X,
+      architecture: lambda.Architecture.ARM_64,
+      memorySize: 512,
+      timeout: Duration.minutes(3),
+      logGroup: aguiLogGroup,
+      depsLockFilePath: path.join(repoRoot, "package-lock.json"),
+      projectRoot: repoRoot,
+      bundling: {
+        minify: true,
+        sourceMap: true,
+        target: "node22",
+      },
+      environment: {
+        USER_POOL_ID: userPool.userPoolId,
+        USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
+        BQ_PROJECT: process.env.BQ_PROJECT ?? "project-fd286af4-b340-4967-86b",
+        BQ_READER_SECRET_ID: "smartshop/bq-reader",
+      },
+    });
+    aguiFn.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["cognito-idp:AdminListGroupsForUser"],
+        resources: [userPool.userPoolArn],
+      }),
+    );
+    aguiFn.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["secretsmanager:GetSecretValue"],
+        resources: [`arn:aws:secretsmanager:${this.region}:${this.account}:secret:smartshop/bq-reader*`],
+      }),
+    );
+    const aguiUrl = aguiFn.addFunctionUrl({
+      authType: lambda.FunctionUrlAuthType.NONE,
+      invokeMode: lambda.InvokeMode.RESPONSE_STREAM,
+      cors: {
+        allowedOrigins: [spaOrigin, "http://localhost:5173"],
+        allowedMethods: [lambda.HttpMethod.POST],
+        allowedHeaders: ["authorization", "content-type", "accept", "x-smartshop-session"],
+      },
+    });
+
     const webDir = path.join(repoRoot, "web");
 
     new s3deploy.BucketDeployment(this, "WebDeploy", {
@@ -423,6 +472,7 @@ export class SmartShopStack extends Stack {
           region: this.region,
           assistantRuntimeArn: assistantRuntime.agentRuntimeArn,
           mapsBrowserKey: process.env.VITE_MAPS_BROWSER_KEY ?? "",
+          aguiStreamUrl: aguiUrl.url,
         }),
       ],
       destinationBucket: webBucket,
@@ -430,6 +480,10 @@ export class SmartShopStack extends Stack {
       distributionPaths: ["/*"],
     });
 
+    new CfnOutput(this, "AguiStreamUrl", {
+      value: aguiUrl.url,
+      description: "Agents-GCP AG-UI stream",
+    });
     new CfnOutput(this, "ApiUrl", {
       value: httpApi.apiEndpoint,
       description: "HTTP API base URL",

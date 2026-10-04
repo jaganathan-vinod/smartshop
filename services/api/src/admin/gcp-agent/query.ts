@@ -7,6 +7,7 @@ const CLOUD_SCOPE = "https://www.googleapis.com/auth/cloud-platform";
 export const GCP_AGENT_LOCATION = "us-central1";
 export const GCP_AGENT_ENGINE_ID = process.env.GCP_AGENT_ENGINE_ID?.trim() || "5576634465393836032";
 const ASK_TIMEOUT_MS = 25_000;
+const STREAM_TIMEOUT_MS = 150_000;
 
 export class GcpAgentError extends Error {
   constructor(message: string) {
@@ -42,6 +43,28 @@ export async function askGcpAgent(
     throw new GcpAgentError("The agent returned no answer");
   }
   return { reply: turn.reply, sessionId: activeSession, a2ui: turn.a2ui };
+}
+
+export async function createCoordinatorSession(userId: string, fetchImpl: typeof fetch = fetch): Promise<string> {
+  const token = await googleAccessToken([CLOUD_SCOPE]);
+  return createSession(token, userId, fetchImpl);
+}
+
+export async function openCoordinatorStream(
+  userId: string,
+  sessionId: string,
+  text: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<Response> {
+  const token = await googleAccessToken([CLOUD_SCOPE]);
+  return postEngine(
+    token,
+    "streamQuery",
+    { user_id: userId, session_id: sessionId, message: text },
+    "async_stream_query",
+    fetchImpl,
+    STREAM_TIMEOUT_MS,
+  );
 }
 
 async function createSession(token: string, userId: string, fetchImpl: typeof fetch): Promise<string> {
@@ -87,6 +110,7 @@ async function postEngine(
   input: Record<string, string>,
   classMethod: string,
   fetchImpl: typeof fetch,
+  timeoutMs = ASK_TIMEOUT_MS,
 ): Promise<Response> {
   const { project } = routeMapConfig();
   const url = `https://${GCP_AGENT_LOCATION}-aiplatform.googleapis.com/v1/projects/${project}/locations/${GCP_AGENT_LOCATION}/reasoningEngines/${GCP_AGENT_ENGINE_ID}:${method}`;
@@ -99,7 +123,7 @@ async function postEngine(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ classMethod, input }),
-      signal: AbortSignal.timeout(ASK_TIMEOUT_MS),
+      signal: AbortSignal.timeout(timeoutMs),
     });
   } catch {
     throw new GcpAgentError("The agent did not answer in time");

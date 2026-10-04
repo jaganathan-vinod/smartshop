@@ -6,6 +6,7 @@ export type AppConfig = {
   assistantRuntimeArn?: string;
   assistantRuntimeUrl?: string;
   mapsBrowserKey: string;
+  aguiStreamUrl?: string;
 };
 
 let cached: Promise<AppConfig> | undefined;
@@ -47,6 +48,7 @@ async function readConfig(): Promise<AppConfig> {
       assistantRuntimeUrl: assistantRuntimeUrl || undefined,
       assistantRuntimeArn: assistantRuntimeArn || undefined,
       mapsBrowserKey: import.meta.env.VITE_MAPS_BROWSER_KEY ?? "",
+      aguiStreamUrl: import.meta.env.VITE_AGUI_STREAM_URL || undefined,
     };
   }
 
@@ -69,5 +71,7 @@ async function readConfig(): Promise<AppConfig> {
         ? json.assistantRuntimeUrl
         : undefined,
     mapsBrowserKey: typeof json.mapsBrowserKey === "string" ? json.mapsBrowserKey : "",
+    aguiStreamUrl:
+      typeof json.aguiStreamUrl === "string" && json.aguiStreamUrl ? json.aguiStreamUrl : undefined,
   };
 }

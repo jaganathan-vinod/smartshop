@@ -14,6 +14,7 @@ export const gcpAgentMessageRequestSchema = z.object({
 export type GcpAgentMessageRequest = z.infer<typeof gcpAgentMessageRequestSchema>;
 
 export const SMARTSHOP_A2UI_CATALOG_ID = "https://smartshop.dev/a2ui/v0.9/catalog.json";
+export const SMARTSHOP_AGUI_ACTIVITY = "a2ui";
 
 export const a2uiMessageSchema = z
   .object({
