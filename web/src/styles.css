@@ -1921,6 +1921,11 @@ button.chat-send {
   height: 100%;
 }
 
+.gcp-chat [data-copilotkit] button {
+  background: var(--accent);
+  color: white;
+}
+
 @media (max-width: 800px) {
   .gcp-shell {
     grid-template-columns: 1fr;

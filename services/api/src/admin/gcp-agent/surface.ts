@@ -140,6 +140,58 @@ export function buildA2ui(text: string, surfaceId: string, asset: CampaignAsset 
   ];
 }
 
+export type StockProposal = {
+  productId: string;
+  delta: number;
+};
+
+export function stockProposal(text: string): StockProposal | undefined {
+  if (!/awaiting approval|proposed the change|needs approval/i.test(text)) {
+    return undefined;
+  }
+  const product = text.match(/product\s+['"]([^'"]+)['"]/i)?.[1] ?? text.match(/\b(prod-[a-z0-9-]+)\b/i)?.[1];
+  const delta = text.match(/([+-]?\d+)\s+units/i)?.[1];
+  if (!product || !delta || Number.isNaN(Number(delta))) {
+    return undefined;
+  }
+  return { productId: product, delta: Number(delta) };
+}
+
+export function decisionSurface(proposal: StockProposal, surfaceId: string): A2uiMessage[] {
+  const approve = `Approve adding ${proposal.delta} units to ${proposal.productId}`;
+  const reject = `Reject adding ${proposal.delta} units to ${proposal.productId}`;
+  return [
+    {
+      version: "v0.9",
+      createSurface: { surfaceId, catalogId: SMARTSHOP_A2UI_CATALOG_ID },
+    },
+    {
+      version: "v0.9",
+      updateComponents: {
+        surfaceId,
+        components: [
+          { id: "root", component: "Column", children: ["approve", "reject"] },
+          { id: "approve-label", component: "Text", text: "Approve" },
+          { id: "reject-label", component: "Text", text: "Reject" },
+          {
+            id: "approve",
+            component: "Button",
+            child: "approve-label",
+            variant: "primary",
+            action: { event: { name: approve } },
+          },
+          {
+            id: "reject",
+            component: "Button",
+            child: "reject-label",
+            action: { event: { name: reject } },
+          },
+        ],
+      },
+    },
+  ];
+}
+
 export function messagesFromSessionEvents(events: unknown[]): GcpAgentChatMessage[] {
   const messages: GcpAgentChatMessage[] = [];
   let pending: A2uiMessage[] | undefined;
@@ -176,7 +228,9 @@ export function messagesFromSessionEvents(events: unknown[]): GcpAgentChatMessag
       carried = asset;
       continue;
     }
-    const a2ui = surfaceForTurn(surfaceForReply(pending, text, `s_${messages.length}`, asset), asset);
+    const proposal = stockProposal(displayText(text, asset));
+    const base = surfaceForTurn(surfaceForReply(pending, text, `s_${messages.length}`, asset), asset);
+    const a2ui = proposal && !surfaceHasButtons(base) ? decisionSurface(proposal, `s_${messages.length}`) : base;
     if (surfaceHasAsset(a2ui)) {
       carried = undefined;
     }
@@ -352,6 +406,14 @@ function surfaceForReply(
     return pending;
   }
   return buildA2ui(text, surfaceId, asset);
+}
+
+function surfaceHasButtons(messages: A2uiMessage[]): boolean {
+  return messages.some((message) => {
+    const update = asRecord(message.updateComponents);
+    const components = update?.components;
+    return Array.isArray(components) && components.some((component) => asRecord(component)?.component === "Button");
+  });
 }
 
 function surfaceHasAsset(messages: A2uiMessage[]): boolean {

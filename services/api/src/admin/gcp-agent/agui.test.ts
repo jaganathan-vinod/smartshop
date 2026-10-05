@@ -255,13 +255,34 @@ describe("ag-ui translation", () => {
       state,
       "run-3",
     );
-    const text = "The store should reorder rice.";
+    const text = "I have proposed the change of +10 units to product 'prod-ceramic-mug'. This change is awaiting approval.";
     translateAdkEvent({ content: { parts: [{ text }] } }, state, "run-3");
     const done = finishTranslation(state, "run-3");
     const activity = done.find((event) => event.type === "ACTIVITY_SNAPSHOT");
     const encoded = JSON.stringify(activity);
-    assert.match(encoded, /Approve the stock proposal/);
-    assert.match(encoded, /Reject the stock proposal/);
+    assert.match(encoded, /Approve adding 10 units to prod-ceramic-mug/);
+    assert.match(encoded, /Reject adding 10 units to prod-ceramic-mug/);
+    assert.equal(encoded.includes(text), false);
+  });
+
+  it("does not ask for approval when inventory still needs the product", () => {
+    const state = createTranslateState();
+    translateAdkEvent(
+      {
+        content: {
+          parts: [{ functionCall: { name: "transfer_to_agent", args: { agent_name: "inventory_agent" } } }],
+        },
+      },
+      state,
+      "run-ask",
+    );
+    translateAdkEvent(
+      { content: { parts: [{ text: "I can do that. What is the product ID and by how much should the stock change?" }] } },
+      state,
+      "run-ask",
+    );
+    const done = finishTranslation(state, "run-ask");
+    assert.equal(done.some((event) => event.type === "ACTIVITY_SNAPSHOT"), false);
   });
 
   it("reads a stream that arrives in pieces", () => {

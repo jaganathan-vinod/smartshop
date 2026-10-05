@@ -1,5 +1,14 @@
 import { SMARTSHOP_AGUI_ACTIVITY, type A2uiMessage } from "@smartshop/shared";
-import { assetCreatedThisTurn, buildA2ui, readA2ui, surfaceForTurn, visibleReply, type CampaignAsset } from "./surface.js";
+import {
+  assetCreatedThisTurn,
+  buildA2ui,
+  decisionSurface,
+  readA2ui,
+  stockProposal,
+  surfaceForTurn,
+  visibleReply,
+  type CampaignAsset,
+} from "./surface.js";
 
 export const A2UI_ACTIVITY_TYPE = SMARTSHOP_AGUI_ACTIVITY;
 
@@ -110,7 +119,7 @@ export function translateAdkEvent(event: unknown, state: TranslateState, runId: 
     }
     const surface = a2uiFromResponse(part);
     const shown = surface ? surfaceForTurn(surface, state.asset) : undefined;
-    if (shown && (hasInteractive(shown) || state.specialist === "inventory_agent")) {
+    if (shown && hasInteractive(shown)) {
       emitActivity(state, events, runId, shown);
     }
   }
@@ -126,7 +135,10 @@ export function finishTranslation(state: TranslateState, runId: string): AguiEve
   finishStep(state, events);
   finishMessage(state, events);
   const asset = state.asset ?? state.fallbackAsset;
-  if (!state.activitySent && (asset || state.specialist === "inventory_agent") && state.lastText) {
+  const proposal = stockProposal(visibleReply(state.lastText));
+  if (!state.activitySent && proposal) {
+    emitActivity(state, events, runId, decisionSurface(proposal, `s_${runId}`));
+  } else if (!state.activitySent && asset && state.lastText) {
     emitActivity(state, events, runId, buildA2ui(state.lastText, `s_${runId}`, asset));
   }
   return events;
@@ -162,7 +174,7 @@ function emitActivity(state: TranslateState, events: AguiEvent[], runId: string,
   if (state.activitySent) {
     return;
   }
-  const surface = state.specialist === "inventory_agent" ? attachDecisions(messages) : messages;
+  const surface = messages;
   state.activitySent = true;
   events.push({
     type: "ACTIVITY_SNAPSHOT",
@@ -187,41 +199,6 @@ function hasInteractive(messages: A2uiMessage[]): boolean {
     }
   }
   return false;
-}
-
-function attachDecisions(messages: A2uiMessage[]): A2uiMessage[] {
-  return messages.map((message) => {
-    const update = asRecord(message.updateComponents);
-    const components = update?.components;
-    if (!update || !Array.isArray(components)) {
-      return message;
-    }
-    const next = components.map((item) => ({ ...(asRecord(item) ?? {}) }));
-    const root = next.find((item) => item.id === "root");
-    const children = Array.isArray(root?.children) ? [...root.children] : [];
-    if (root && !children.includes("approve")) {
-      children.push("approve", "reject");
-      root.children = children;
-    }
-    next.push(
-      { id: "approve-label", component: "Text", text: "Approve" },
-      { id: "reject-label", component: "Text", text: "Reject" },
-      {
-        id: "approve",
-        component: "Button",
-        child: "approve-label",
-        variant: "primary",
-        action: { event: { name: "Approve the stock proposal" } },
-      },
-      {
-        id: "reject",
-        component: "Button",
-        child: "reject-label",
-        action: { event: { name: "Reject the stock proposal" } },
-      },
-    );
-    return { ...message, updateComponents: { ...update, components: next } };
-  });
 }
 
 function finishStep(state: TranslateState, events: AguiEvent[]): void {
