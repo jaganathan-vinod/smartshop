@@ -1,5 +1,5 @@
 import { SMARTSHOP_AGUI_ACTIVITY, type A2uiMessage } from "@smartshop/shared";
-import { assetFromTurn, buildA2ui, readA2ui, surfaceForTurn, visibleReply, type CampaignAsset } from "./surface.js";
+import { assetCreatedThisTurn, buildA2ui, readA2ui, surfaceForTurn, visibleReply, type CampaignAsset } from "./surface.js";
 
 export const A2UI_ACTIVITY_TYPE = SMARTSHOP_AGUI_ACTIVITY;
 
@@ -87,11 +87,17 @@ export function translateAdkEvent(event: unknown, state: TranslateState, runId: 
   if (author === "user" || role === "user") {
     return events;
   }
-  const discovered = assetFromTurn(record);
+  const parts = Array.isArray(content?.parts) ? content.parts : [];
+  for (const part of parts) {
+    const call = functionCall(part);
+    if (call?.name === "transfer_to_agent") {
+      state.specialist = agentName(call.args);
+    }
+  }
+  const discovered = assetCreatedThisTurn(record, state.specialist ?? author);
   if (discovered) {
     state.asset = discovered;
   }
-  const parts = Array.isArray(content?.parts) ? content.parts : [];
   for (const part of parts) {
     const call = functionCall(part);
     if (call?.name === "transfer_to_agent") {

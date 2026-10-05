@@ -144,6 +144,7 @@ export function messagesFromSessionEvents(events: unknown[]): GcpAgentChatMessag
   const messages: GcpAgentChatMessage[] = [];
   let pending: A2uiMessage[] | undefined;
   let carried: CampaignAsset | undefined;
+  let specialist = "";
   for (const event of events) {
     const role = roleOf(event);
     const parts = partsOf(event);
@@ -151,7 +152,11 @@ export function messagesFromSessionEvents(events: unknown[]): GcpAgentChatMessag
     if (toolSurface) {
       pending = toolSurface;
     }
-    const discovered = assetFromTurn(event);
+    const transferred = transferredSpecialist(event);
+    if (transferred) {
+      specialist = transferred;
+    }
+    const discovered = assetCreatedThisTurn(event, specialist);
     if (discovered) {
       carried = discovered;
     }
@@ -162,10 +167,11 @@ export function messagesFromSessionEvents(events: unknown[]): GcpAgentChatMessag
     if (role === "user") {
       carried = undefined;
       pending = undefined;
+      specialist = "";
       messages.push({ role: "user", text, a2ui: [] });
       continue;
     }
-    const asset = carried ?? findAsset(text);
+    const asset = carried;
     if (asset && text.replace(ASSET_LINE, "").trim() === "") {
       carried = asset;
       continue;
@@ -366,9 +372,67 @@ export function assetFromTurn(value: unknown): CampaignAsset | undefined {
   return walkExplicitAsset(withoutOperator(value), 0) ?? walkForAsset(withoutOperator(value), 0);
 }
 
+export function assetCreatedThisTurn(event: unknown, specialist: string): CampaignAsset | undefined {
+  const author = authorOf(event);
+  if (author !== "marketing_agent" && specialist !== "marketing_agent" && !hasMediaTool(event)) {
+    return undefined;
+  }
+  return assetFromTurn(event);
+}
+
 export function surfaceForTurn(messages: A2uiMessage[], asset: CampaignAsset | undefined): A2uiMessage[] {
   const aligned = asset ? cleanSurface(messages, asset) : stripAssets(messages);
   return asset ? withoutAnswer(aligned) : aligned;
+}
+
+function authorOf(event: unknown): string {
+  const record = asRecord(unwrapOutput(event));
+  return typeof record?.author === "string" ? record.author : "";
+}
+
+function transferredSpecialist(event: unknown): string {
+  return namedCall(event, "transfer_to_agent");
+}
+
+function hasMediaTool(event: unknown): boolean {
+  return namedCall(event, "create_campaign_image") !== "" || namedCall(event, "start_campaign_video") !== "";
+}
+
+function namedCall(value: unknown, tool: string, depth = 0): string {
+  if (depth > 8) {
+    return "";
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = namedCall(item, tool, depth + 1);
+      if (found) {
+        return found;
+      }
+    }
+    return "";
+  }
+  const record = asRecord(value);
+  if (!record) {
+    return "";
+  }
+  const response = asRecord(record.functionResponse) ?? asRecord(record.function_response);
+  const call = asRecord(record.functionCall) ?? asRecord(record.function_call);
+  const name = response?.name ?? call?.name;
+  if (name === tool) {
+    if (tool !== "transfer_to_agent") {
+      return tool;
+    }
+    const args = asRecord(call?.args) ?? asRecord(response?.response);
+    const agent = args?.agent_name ?? args?.agentName;
+    return typeof agent === "string" ? agent : "";
+  }
+  for (const nested of Object.values(record)) {
+    const found = namedCall(nested, tool, depth + 1);
+    if (found) {
+      return found;
+    }
+  }
+  return "";
 }
 
 function withoutOperator(value: unknown): unknown {

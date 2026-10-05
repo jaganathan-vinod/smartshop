@@ -51,6 +51,7 @@ describe("ag-ui translation", () => {
     const videoCard = buildA2ui("ignored", "main", { assetId: "asset_8741a17229ba", kind: "video", status: "REVIEW" });
     const events = translateAdkEvent(
       {
+        author: "marketing_agent",
         content: {
           parts: [
             { text },
@@ -66,6 +67,39 @@ describe("ag-ui translation", () => {
     const activity = events.find((event) => event.type === "ACTIVITY_SNAPSHOT");
     assert.match(JSON.stringify(activity), /"kind":"image"/);
     assert.equal(JSON.stringify(activity).includes("TRACE"), false);
+  });
+
+  it("ignores an asset line copied onto a drive-time answer", () => {
+    const state = createTranslateState();
+    translateAdkEvent(
+      {
+        content: {
+          parts: [{ functionCall: { name: "transfer_to_agent", args: { agent_name: "delivery_agent" } } }],
+        },
+      },
+      state,
+      "run-copied",
+    );
+    const copied = buildA2ui("The drive is 9 minutes.", "main", {
+      assetId: "asset_8741a17229ba",
+      kind: "image",
+      status: "REVIEW",
+    });
+    const events = translateAdkEvent(
+      {
+        author: "coordinator",
+        content: {
+          parts: [
+            { text: "The drive is 9 minutes.\nASSET asset_8741a17229ba image REVIEW" },
+            { functionResponse: { name: "present_to_operator", response: { a2ui: copied } } },
+          ],
+        },
+      },
+      state,
+      "run-copied",
+    );
+    assert.equal(events.some((event) => event.type === "ACTIVITY_SNAPSHOT"), false);
+    assert.equal(events.filter((event) => event.type === "TEXT_MESSAGE_CONTENT").map((event) => event.delta).join(""), "The drive is 9 minutes.");
   });
 
   it("does not pin an older video on a drive-time answer", () => {

@@ -1,5 +1,5 @@
 import { latestStoredAsset, loadStoredMarketingTraces, type StoredAssetKind } from "./assets.js";
-import type { CampaignAsset } from "./surface.js";
+import { visibleReply, type CampaignAsset } from "./surface.js";
 import { latestSessionAsset } from "./sessions.js";
 import { createCoordinatorSession, GcpAgentError, openCoordinatorStream } from "./query.js";
 import {
@@ -93,7 +93,8 @@ function wantsStoredFile(question: string, reply: string): boolean {
   if (asksToSeeAsset(question)) {
     return true;
   }
-  return /\b(image|images|video|videos|poster|picture|photo|clip|still)\b/i.test(reply) && /\b(ready|review|generating|created|waiting)\b/i.test(reply);
+  const visible = visibleReply(reply);
+  return /\b(image|images|video|videos|poster|picture|photo|clip|still)\b/i.test(visible) && /\b(ready|review|generating|created|waiting)\b/i.test(visible);
 }
 
 function preferredKind(text: string): StoredAssetKind {
