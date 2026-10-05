@@ -77,7 +77,7 @@ delivery_agent = _remote(
 )
 insights_agent = _remote(
     "insights_agent",
-    "Answers trends from read-only BigQuery tables.",
+    "Answers trends from read-only BigQuery tables and order statistics from the orders data agent.",
     "INSIGHTS_ENGINE_ID",
 )
 inventory_agent = _remote(
@@ -102,7 +102,8 @@ root_agent = LlmAgent(
     description="Routes one SmartShop operations question to the right specialist over A2A.",
     instruction=(
         "You have no Maps, BigQuery, document, image, or video tool. "
-        "Delegate delivery and routing to delivery_agent, trends to insights_agent, "
+        "Delegate delivery and routing to delivery_agent, "
+        "order status, revenue, counts, and other trends to insights_agent, "
         "stock changes to inventory_agent, policies to standards_agent, "
         "and campaign stills or videos to marketing_agent. "
         "Each specialist is a separate agent reached over A2A. "

@@ -60,7 +60,7 @@ def delivery_a2a() -> A2aAgent:
 def insights_a2a() -> A2aAgent:
     return _agent(
         "insights_agent",
-        "Answers trends from read-only BigQuery tables.",
+        "Answers trends from read-only BigQuery tables and order statistics from the orders data agent.",
         "insights",
         build_insights_executor,
     )
