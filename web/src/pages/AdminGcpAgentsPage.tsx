@@ -120,7 +120,7 @@ export function AdminGcpAgentsPage() {
           <h1>Agents-GCP</h1>
           <p className="lede">
             Ask the operations coordinator. It sends the question to the delivery, insights, inventory, standards, or
-            marketing agent. A store-planning question draws the map in this chat.
+            marketing agent. A store plan, or the fastest delivery to a place, draws the map in this chat.
           </p>
         </header>
         {params.sessionId && !sessionId ? <p className="flash error">That chat link is not valid.</p> : null}

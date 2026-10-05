@@ -1,7 +1,7 @@
 import type { PlanApiCall } from "@smartshop/shared";
 import { planCandidate, type StorePlanResult } from "../agent/plan.js";
 import { latestStoredAsset, loadStoredMarketingTraces, type StoredAssetKind } from "./assets.js";
-import { isStorePlanQuestion, planningRequest } from "./plan-intent.js";
+import { earlierUserText, hasPlanningTarget, isStorePlanQuestion, planningRequest } from "./plan-intent.js";
 import { planSurface, visibleReply, type CampaignAsset } from "./surface.js";
 import { latestSessionAsset } from "./sessions.js";
 import { createCoordinatorSession, GcpAgentError, openCoordinatorStream } from "./query.js";
@@ -46,7 +46,7 @@ export async function writeAguiRun(options: {
   }
   try {
     if (isStorePlanQuestion(input.text)) {
-      await writeStorePlan(options, input, runId, writeEvent);
+      await writeStorePlan(options, input, earlierUserText(options.body, input.text), runId, writeEvent);
       return;
     }
     const sessionId =
@@ -105,6 +105,7 @@ async function writeStorePlan(
     planStore?: (text: string) => Promise<StorePlanResult>;
   },
   input: { text: string },
+  earlier: string,
   runId: string,
   writeEvent: (event: AguiEvent) => void,
 ): Promise<void> {
@@ -117,7 +118,21 @@ async function writeStorePlan(
     value: { actor: "user", kind: "coordinator_input", name: "planning_agent", input: input.text },
   });
   writeEvent({ type: "STEP_STARTED", stepName: "Asking the planning agent" });
-  const plan = await (options.planStore ?? planCandidate)(planningRequest(input.text));
+  const request = planningRequest(input.text, earlier);
+  if (!hasPlanningTarget(input.text, earlier)) {
+    const messageId = `text-${runId}-plan`;
+    writeEvent({ type: "TEXT_MESSAGE_START", messageId, role: "assistant" });
+    writeEvent({
+      type: "TEXT_MESSAGE_CONTENT",
+      messageId,
+      delta: "Tell me the place, for example: fastest delivery to Punggol, or plan a store at 391 Orchard Rd.",
+    });
+    writeEvent({ type: "TEXT_MESSAGE_END", messageId });
+    writeEvent({ type: "STEP_FINISHED", stepName: "Asking the planning agent" });
+    writeEvent({ type: "RUN_FINISHED", threadId: sessionId, runId });
+    return;
+  }
+  const plan = await (options.planStore ?? planCandidate)(request);
   const messageId = `text-${runId}-plan`;
   writeEvent({ type: "TEXT_MESSAGE_START", messageId, role: "assistant" });
   writeEvent({ type: "TEXT_MESSAGE_CONTENT", messageId, delta: plan.reply });

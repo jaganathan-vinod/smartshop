@@ -10,7 +10,7 @@ import {
   translateAdkEvent,
   type AguiEvent,
 } from "./agui.js";
-import { isStorePlanQuestion } from "./plan-intent.js";
+import { isStorePlanQuestion, planningRequest } from "./plan-intent.js";
 import { buildA2ui } from "./surface.js";
 
 const surface = buildA2ui("Poster ready.", "main", {
@@ -23,8 +23,17 @@ describe("ag-ui translation", () => {
   it("treats a candidate store question as planning and leaves the agent list alone", () => {
     assert.equal(isStorePlanQuestion("Plan a store at 391 Orchard Rd, Singapore"), true);
     assert.equal(isStorePlanQuestion("competitors near 391 Orchard Rd"), true);
+    assert.equal(isStorePlanQuestion("whats fastest delivery to punggol ?"), true);
+    assert.equal(
+      isStorePlanQuestion("based on the current smartshop shops whats the fastest delivery path to punggol ?"),
+      true,
+    );
+    assert.equal(isStorePlanQuestion("use planning agent"), true);
     assert.equal(isStorePlanQuestion("what are the agents available"), false);
     assert.equal(isStorePlanQuestion("Drive time from 750 Market St to 1 Market St"), false);
+    assert.equal(planningRequest("whats fastest delivery to punggol ?"), "punggol");
+    assert.equal(planningRequest("use planning agent", "whats fastest delivery to punggol ?"), "punggol");
+    assert.equal(planningRequest("Plan a store at 391 Orchard Rd, Singapore"), "391 Orchard Rd, Singapore");
   });
 
   it("streams a growing answer as one message", () => {
@@ -430,6 +439,34 @@ describe("ag-ui translation", () => {
     assert.match(JSON.stringify(activity), /Orchard/);
     assert.ok(trace);
     assert.equal(events.some((event) => event.type === "RUN_FINISHED"), true);
+  });
+
+  it("uses the place from the earlier question when asked for the planning agent", async () => {
+    const chunks: string[] = [];
+    await writeAguiRun({
+      body: {
+        threadId: "session-plan",
+        runId: "run-follow",
+        messages: [
+          { role: "user", content: "whats fastest delivery to punggol ?" },
+          { role: "assistant", content: "I need a starting point." },
+          { role: "user", content: "use planning agent" },
+        ],
+      },
+      userId: "user-1",
+      existingSession: "session-plan",
+      write: (chunk) => chunks.push(chunk),
+      streamEvents: async function* () {
+        throw new Error("planning should not call the coordinator");
+      },
+      planStore: async (text) => {
+        assert.equal(text, "punggol");
+        return { reply: "Candidate punggol. Nearest current store: Punggol, 2.0 km, about 6 min." };
+      },
+    });
+    const events = chunks.map((chunk) => JSON.parse(chunk.replace(/^data: /, "").trim()) as AguiEvent);
+    const text = events.find((event) => event.type === "TEXT_MESSAGE_CONTENT");
+    assert.match(String(text?.delta), /Nearest current store: Punggol/);
   });
 
   it("rejects a question with no text", async () => {
