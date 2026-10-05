@@ -10,6 +10,7 @@ import {
   translateAdkEvent,
   type AguiEvent,
 } from "./agui.js";
+import { isStorePlanQuestion } from "./plan-intent.js";
 import { buildA2ui } from "./surface.js";
 
 const surface = buildA2ui("Poster ready.", "main", {
@@ -19,6 +20,13 @@ const surface = buildA2ui("Poster ready.", "main", {
 });
 
 describe("ag-ui translation", () => {
+  it("treats a candidate store question as planning and leaves the agent list alone", () => {
+    assert.equal(isStorePlanQuestion("Plan a store at 391 Orchard Rd, Singapore"), true);
+    assert.equal(isStorePlanQuestion("competitors near 391 Orchard Rd"), true);
+    assert.equal(isStorePlanQuestion("what are the agents available"), false);
+    assert.equal(isStorePlanQuestion("Drive time from 750 Market St to 1 Market St"), false);
+  });
+
   it("streams a growing answer as one message", () => {
     const state = createTranslateState();
     const first = translateAdkEvent({ content: { parts: [{ text: "The drive" }], role: "model" } }, state, "run-1");
@@ -359,6 +367,69 @@ describe("ag-ui translation", () => {
     });
     const first = JSON.parse(chunks[0]?.replace(/^data: /, "").trim() ?? "{}") as { threadId?: string };
     assert.equal(first.threadId, "session-9");
+  });
+
+  it("draws a store plan in the chat without calling the coordinator", async () => {
+    const chunks: string[] = [];
+    const route = JSON.stringify({
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          properties: { subject_kind: "CURRENT_STORE", subject_name: "Orchard" },
+          geometry: { type: "LineString", coordinates: [[103.8, 1.3], [103.9, 1.4]] },
+        },
+      ],
+    });
+    await writeAguiRun({
+      body: {
+        threadId: "new",
+        runId: "run-plan",
+        messages: [{ role: "user", content: "Plan a store at 391 Orchard Rd, Singapore" }],
+      },
+      userId: "user-1",
+      write: (chunk) => chunks.push(chunk),
+      createSession: async () => "session-plan",
+      streamEvents: async function* () {
+        throw new Error("planning should not call the coordinator");
+      },
+      planStore: async (text) => {
+        assert.equal(text, "391 Orchard Rd, Singapore");
+        return {
+        reply: "Candidate 391 Orchard Rd, Singapore. Nearest current store: Orchard, 1.2 km, about 4 min.",
+        choices: [
+          {
+            id: "store-0",
+            subjectKind: "CURRENT_STORE",
+            subjectName: "Orchard",
+            distanceMeters: 1200,
+            durationSeconds: 240,
+            routeGeojson: route,
+          },
+        ],
+        trace: [
+          {
+            label: "Geocode candidate",
+            api: "GEOCODE",
+            method: "GET",
+            url: "https://maps.googleapis.com/maps/api/geocode/json",
+            status: 200,
+            request: "{}",
+            response: "{}",
+          },
+        ],
+        };
+      },
+    });
+    const events = chunks.map((chunk) => JSON.parse(chunk.replace(/^data: /, "").trim()) as AguiEvent);
+    const text = events.find((event) => event.type === "TEXT_MESSAGE_CONTENT");
+    const activity = events.find((event) => event.type === "ACTIVITY_SNAPSHOT");
+    const trace = events.find((event) => event.type === "CUSTOM" && JSON.stringify(event.value).includes("Maps Geocoding"));
+    assert.match(String(text?.delta), /Nearest current store: Orchard/);
+    assert.match(JSON.stringify(activity), /"component":"Plan"/);
+    assert.match(JSON.stringify(activity), /Orchard/);
+    assert.ok(trace);
+    assert.equal(events.some((event) => event.type === "RUN_FINISHED"), true);
   });
 
   it("rejects a question with no text", async () => {

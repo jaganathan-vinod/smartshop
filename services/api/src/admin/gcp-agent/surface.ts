@@ -1,4 +1,9 @@
-import { SMARTSHOP_A2UI_CATALOG_ID, type A2uiMessage, type GcpAgentChatMessage } from "@smartshop/shared";
+import {
+  SMARTSHOP_A2UI_CATALOG_ID,
+  type A2uiMessage,
+  type GcpAgentChatMessage,
+  type PlanChoice,
+} from "@smartshop/shared";
 
 const ASSET_LINE = /ASSET\s+(asset_[a-f0-9]{12})\s+(image|video)\s+(REVIEW|GENERATING)/i;
 const ASSET_ID = /\b(asset_[a-f0-9]{12})\b/i;
@@ -155,6 +160,25 @@ export function stockProposal(text: string): StockProposal | undefined {
     return undefined;
   }
   return { productId: product, delta: Number(delta) };
+}
+
+export function planSurface(choices: PlanChoice[], surfaceId: string): A2uiMessage[] {
+  return [
+    {
+      version: "v0.9",
+      createSurface: { surfaceId, catalogId: SMARTSHOP_A2UI_CATALOG_ID },
+    },
+    {
+      version: "v0.9",
+      updateComponents: {
+        surfaceId,
+        components: [
+          { id: "root", component: "Column", children: ["plan"] },
+          { id: "plan", component: "Plan", choicesJson: JSON.stringify(choices) },
+        ],
+      },
+    },
+  ];
 }
 
 export function decisionSurface(proposal: StockProposal, surfaceId: string): A2uiMessage[] {

@@ -1,9 +1,12 @@
 import { Button, Card, Column, Text, createComponentImplementation } from "@a2ui/react/v0_9";
-import { SMARTSHOP_A2UI_CATALOG_ID } from "@smartshop/shared";
+import { planChoiceSchema, SMARTSHOP_A2UI_CATALOG_ID, type PlanChoice } from "@smartshop/shared";
 import { Catalog } from "@a2ui/web_core/v0_9";
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { ApiRequestError, getGcpAgentAsset } from "../api";
+import { loadConfig } from "../config";
+
+const PlanMap = lazy(() => import("../pages/PlanMap").then((module) => ({ default: module.PlanMap })));
 
 const AssetApi = {
   name: "Asset",
@@ -20,12 +23,26 @@ const Asset = createComponentImplementation(AssetApi, function AssetView({ props
   return <AssetCard assetId={props.assetId} kind={props.kind} status={props.status} />;
 });
 
+const PlanApi = {
+  name: "Plan",
+  schema: z
+    .object({
+      choicesJson: z.string(),
+    })
+    .strict(),
+};
+
+const Plan = createComponentImplementation(PlanApi, function PlanView({ props }) {
+  return <PlanCard choicesJson={props.choicesJson} />;
+});
+
 export const smartshopCatalog = new Catalog(SMARTSHOP_A2UI_CATALOG_ID, "0.9", [
   Column,
   Text,
   Card,
   Button,
   Asset,
+  Plan,
 ]);
 
 const VIDEO_WAIT_MS = 15 * 60 * 1000;
@@ -122,6 +139,98 @@ function AssetCard({
       </dialog>
     </div>
   );
+}
+
+function PlanCard({ choicesJson }: { choicesJson: string }) {
+  const choices = readChoices(choicesJson);
+  const [selectedId, setSelectedId] = useState(choices[0]?.id ?? "");
+  const [mapsKey, setMapsKey] = useState("");
+  const selected = choices.find((choice) => choice.id === selectedId) ?? choices[0];
+  const ownStore = choices.find((choice) => choice.subjectKind === "CURRENT_STORE");
+  const competitors = choices.filter((choice) => choice.subjectKind === "COMPETITOR");
+
+  useEffect(() => {
+    let cancelled = false;
+    loadConfig()
+      .then((config) => {
+        if (!cancelled) {
+          setMapsKey(config.mapsBrowserKey);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setMapsKey("");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (!selected) {
+    return <p>The plan has no routes to draw.</p>;
+  }
+
+  return (
+    <div className="gcp-plan">
+      {ownStore ? (
+        <div className="plan-group">
+          <h2>Our store</h2>
+          <PlanChoiceButton choice={ownStore} selected={selected.id === ownStore.id} onSelect={() => setSelectedId(ownStore.id)} />
+        </div>
+      ) : null}
+      {competitors.length > 0 ? (
+        <div className="plan-group">
+          <h2>Competitors</h2>
+          <ul className="plan-choices">
+            {competitors.map((choice) => (
+              <li key={choice.id}>
+                <PlanChoiceButton
+                  choice={choice}
+                  selected={selected.id === choice.id}
+                  onSelect={() => setSelectedId(choice.id)}
+                />
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      <p className="muted plan-map-caption">{selected.subjectName}</p>
+      <Suspense fallback={<p className="muted">Loading map…</p>}>
+        <PlanMap mapsKey={mapsKey} routeGeojson={selected.routeGeojson} />
+      </Suspense>
+    </div>
+  );
+}
+
+function PlanChoiceButton({
+  choice,
+  selected,
+  onSelect,
+}: {
+  choice: PlanChoice;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const km = (choice.distanceMeters / 1000).toFixed(1);
+  const minutes = Math.max(1, Math.round(choice.durationSeconds / 60));
+  return (
+    <button type="button" className={selected ? "plan-choice is-selected" : "plan-choice"} aria-pressed={selected} onClick={onSelect}>
+      <span>{choice.subjectName}</span>
+      <span>
+        {km} km · {minutes} min
+      </span>
+    </button>
+  );
+}
+
+function readChoices(choicesJson: string): PlanChoice[] {
+  try {
+    const parsed = planChoiceSchema.array().safeParse(JSON.parse(choicesJson) as unknown);
+    return parsed.success ? parsed.data : [];
+  } catch {
+    return [];
+  }
 }
 
 function kindFromBlob(blob: Blob, declared: "image" | "video"): "image" | "video" {

@@ -1931,6 +1931,30 @@ button.chat-send {
   color: #ffffff;
 }
 
+.gcp-chat [data-copilotkit] .gcp-plan button.plan-choice {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  background-color: #ffffff;
+  color: #14352c;
+  border: 1px solid #e3eee8;
+  border-radius: 0.7rem;
+  text-align: left;
+}
+
+.gcp-chat [data-copilotkit] .gcp-plan button.plan-choice * {
+  color: #14352c;
+}
+
+.gcp-chat [data-copilotkit] .gcp-plan button.plan-choice.is-selected {
+  background-color: #e8f0fe;
+  border-color: #1a73e8;
+}
+
+.gcp-chat .gcp-plan .route-map.plan-map {
+  height: 18rem;
+}
+
 @media (max-width: 800px) {
   .gcp-shell {
     grid-template-columns: 1fr;

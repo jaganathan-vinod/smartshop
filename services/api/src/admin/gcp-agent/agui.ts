@@ -193,7 +193,7 @@ function hasInteractive(messages: A2uiMessage[]): boolean {
     }
     for (const component of components) {
       const name = asRecord(component)?.component;
-      if (name === "Asset" || name === "Button" || name === "Card") {
+      if (name === "Asset" || name === "Button" || name === "Card" || name === "Plan") {
         return true;
       }
     }

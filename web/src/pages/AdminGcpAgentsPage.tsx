@@ -120,7 +120,7 @@ export function AdminGcpAgentsPage() {
           <h1>Agents-GCP</h1>
           <p className="lede">
             Ask the operations coordinator. It sends the question to the delivery, insights, inventory, standards, or
-            marketing agent.
+            marketing agent. A store-planning question draws the map in this chat.
           </p>
         </header>
         {params.sessionId && !sessionId ? <p className="flash error">That chat link is not valid.</p> : null}
@@ -319,7 +319,12 @@ function interactiveSurface(messages: A2uiMessage[]): boolean {
       if (!component || typeof component !== "object" || !("component" in component)) {
         return false;
       }
-      return component.component === "Asset" || component.component === "Button" || component.component === "Card";
+      return (
+        component.component === "Asset" ||
+        component.component === "Button" ||
+        component.component === "Card" ||
+        component.component === "Plan"
+      );
     });
   });
 }

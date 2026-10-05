@@ -1,5 +1,8 @@
+import type { PlanApiCall } from "@smartshop/shared";
+import { planCandidate, type StorePlanResult } from "../agent/plan.js";
 import { latestStoredAsset, loadStoredMarketingTraces, type StoredAssetKind } from "./assets.js";
-import { visibleReply, type CampaignAsset } from "./surface.js";
+import { isStorePlanQuestion, planningRequest } from "./plan-intent.js";
+import { planSurface, visibleReply, type CampaignAsset } from "./surface.js";
 import { latestSessionAsset } from "./sessions.js";
 import { createCoordinatorSession, GcpAgentError, openCoordinatorStream } from "./query.js";
 import {
@@ -32,6 +35,7 @@ export async function writeAguiRun(options: {
   loadPriorAsset?: (userId: string, sessionId: string) => Promise<CampaignAsset | undefined>;
   loadStoredAsset?: (prefer: StoredAssetKind) => Promise<CampaignAsset | undefined>;
   loadMarketingTraces?: (prompts: string[], assetIds: string[]) => Promise<unknown[]>;
+  planStore?: (text: string) => Promise<StorePlanResult>;
 }): Promise<void> {
   const input = runInput(options.body);
   const runId = input?.runId ?? crypto.randomUUID();
@@ -41,6 +45,10 @@ export async function writeAguiRun(options: {
     return;
   }
   try {
+    if (isStorePlanQuestion(input.text)) {
+      await writeStorePlan(options, input, runId, writeEvent);
+      return;
+    }
     const sessionId =
       options.existingSession ?? (await (options.createSession ?? createCoordinatorSession)(options.userId));
     writeEvent({ type: "RUN_STARTED", threadId: sessionId, runId });
@@ -86,6 +94,84 @@ export async function writeAguiRun(options: {
   } catch (error) {
     const message = error instanceof GcpAgentError ? error.message : "The agent did not answer";
     writeEvent({ type: "RUN_ERROR", message });
+  }
+}
+
+async function writeStorePlan(
+  options: {
+    userId: string;
+    existingSession?: string;
+    createSession?: (userId: string) => Promise<string>;
+    planStore?: (text: string) => Promise<StorePlanResult>;
+  },
+  input: { text: string },
+  runId: string,
+  writeEvent: (event: AguiEvent) => void,
+): Promise<void> {
+  const sessionId =
+    options.existingSession ?? (await (options.createSession ?? createCoordinatorSession)(options.userId));
+  writeEvent({ type: "RUN_STARTED", threadId: sessionId, runId });
+  writeEvent({
+    type: "CUSTOM",
+    name: traceEventName(),
+    value: { actor: "user", kind: "coordinator_input", name: "planning_agent", input: input.text },
+  });
+  writeEvent({ type: "STEP_STARTED", stepName: "Asking the planning agent" });
+  const plan = await (options.planStore ?? planCandidate)(planningRequest(input.text));
+  const messageId = `text-${runId}-plan`;
+  writeEvent({ type: "TEXT_MESSAGE_START", messageId, role: "assistant" });
+  writeEvent({ type: "TEXT_MESSAGE_CONTENT", messageId, delta: plan.reply });
+  writeEvent({ type: "TEXT_MESSAGE_END", messageId });
+  for (const entry of planTraces(plan.trace ?? [])) {
+    writeEvent({ type: "CUSTOM", name: traceEventName(), value: entry });
+  }
+  const choices = plan.choices ?? [];
+  if (choices.length > 0) {
+    writeEvent({
+      type: "ACTIVITY_SNAPSHOT",
+      messageId: `activity-${runId}`,
+      activityType: "a2ui",
+      content: { messages: planSurface(choices, `s_${runId}`) },
+    });
+  }
+  writeEvent({ type: "STEP_FINISHED", stepName: "Asking the planning agent" });
+  writeEvent({ type: "RUN_FINISHED", threadId: sessionId, runId });
+}
+
+function planTraces(calls: PlanApiCall[]): Array<{
+  actor: string;
+  kind: "google_api";
+  name: string;
+  detail: string;
+  input: string;
+  output: { status: number; body: string };
+}> {
+  return calls.map((call) => ({
+    actor: "planning_agent",
+    kind: "google_api",
+    name: planApiName(call.api),
+    detail: call.label,
+    input: call.request,
+    output: { status: call.status, body: call.response },
+  }));
+}
+
+function planApiName(api: PlanApiCall["api"]): string {
+  switch (api) {
+    case "GEOCODE":
+      return "Maps Geocoding";
+    case "PLACES":
+      return "Places searchNearby";
+    case "ROUTES":
+      return "Routes computeRoutes";
+    case "IMAGEN":
+      return "Gemini generateContent";
+    case "VEO":
+      return "Veo predictLongRunning";
+    default: {
+      const unexpected: never = api;
+      return unexpected;
+    }
   }
 }
 

@@ -411,7 +411,9 @@ export class SmartShopStack extends Stack {
         USER_POOL_ID: userPool.userPoolId,
         USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
         BQ_PROJECT: process.env.BQ_PROJECT ?? "project-fd286af4-b340-4967-86b",
+        BQ_DATASET: process.env.BQ_DATASET ?? "routes",
         BQ_READER_SECRET_ID: "smartshop/bq-reader",
+        MAPS_SERVER_SECRET_ID: "smartshop/maps-server",
       },
     });
     aguiFn.addToRolePolicy(
@@ -423,7 +425,10 @@ export class SmartShopStack extends Stack {
     aguiFn.addToRolePolicy(
       new iam.PolicyStatement({
         actions: ["secretsmanager:GetSecretValue"],
-        resources: [`arn:aws:secretsmanager:${this.region}:${this.account}:secret:smartshop/bq-reader*`],
+        resources: [
+          `arn:aws:secretsmanager:${this.region}:${this.account}:secret:smartshop/bq-reader*`,
+          `arn:aws:secretsmanager:${this.region}:${this.account}:secret:smartshop/maps-server*`,
+        ],
       }),
     );
     const aguiUrl = aguiFn.addFunctionUrl({
