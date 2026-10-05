@@ -1,5 +1,17 @@
+import { latestStoredAsset, loadStoredMarketingTraces, type StoredAssetKind } from "./assets.js";
+import type { CampaignAsset } from "./surface.js";
+import { latestSessionAsset } from "./sessions.js";
 import { createCoordinatorSession, GcpAgentError, openCoordinatorStream } from "./query.js";
 import {
+  appendStoredCalls,
+  coordinatorPrompts,
+  liveTraceFromEvent,
+  needsMarketingDetail,
+  openingTrace,
+  traceEventName,
+} from "./trace.js";
+import {
+  asksToSeeAsset,
   createNdjsonReader,
   createTranslateState,
   encodeSse,
@@ -16,6 +28,10 @@ export async function writeAguiRun(options: {
   existingSession?: string;
   createSession?: (userId: string) => Promise<string>;
   streamEvents?: (userId: string, sessionId: string, text: string) => AsyncIterable<unknown>;
+  priorAsset?: CampaignAsset;
+  loadPriorAsset?: (userId: string, sessionId: string) => Promise<CampaignAsset | undefined>;
+  loadStoredAsset?: (prefer: StoredAssetKind) => Promise<CampaignAsset | undefined>;
+  loadMarketingTraces?: (prompts: string[], assetIds: string[]) => Promise<unknown[]>;
 }): Promise<void> {
   const input = runInput(options.body);
   const runId = input?.runId ?? crypto.randomUUID();
@@ -28,12 +44,36 @@ export async function writeAguiRun(options: {
     const sessionId =
       options.existingSession ?? (await (options.createSession ?? createCoordinatorSession)(options.userId));
     writeEvent({ type: "RUN_STARTED", threadId: sessionId, runId });
+    for (const entry of openingTrace(sessionId, input.text)) {
+      writeEvent({ type: "CUSTOM", name: traceEventName(), value: entry });
+    }
     const state = createTranslateState();
+    if (asksToSeeAsset(input.text)) {
+      state.fallbackAsset = await rememberedAsset(options, sessionId);
+    }
     const stream = options.streamEvents ?? coordinatorEvents;
+    const liveEntries = [...openingTrace(sessionId, input.text)];
     for await (const chunk of stream(options.userId, sessionId, input.text)) {
+      for (const entry of liveTraceFromEvent(chunk)) {
+        liveEntries.push(entry);
+        writeEvent({ type: "CUSTOM", name: traceEventName(), value: entry });
+      }
       for (const event of translateAdkEvent(chunk, state, runId)) {
         writeEvent(event);
       }
+    }
+    if (needsMarketingDetail(liveEntries)) {
+      try {
+        const calls = await (options.loadMarketingTraces ?? loadStoredMarketingTraces)(coordinatorPrompts(liveEntries), []);
+        for (const entry of appendStoredCalls([], calls)) {
+          writeEvent({ type: "CUSTOM", name: traceEventName(), value: entry });
+        }
+      } catch {
+        // The specialist handoff is still shown when the stored call log cannot be read.
+      }
+    }
+    if (!state.asset && !state.fallbackAsset && wantsStoredFile(input.text, state.lastText)) {
+      state.fallbackAsset = await storedAsset(options, `${input.text}\n${state.lastText}`);
     }
     for (const event of finishTranslation(state, runId)) {
       writeEvent(event);
@@ -46,6 +86,58 @@ export async function writeAguiRun(options: {
   } catch (error) {
     const message = error instanceof GcpAgentError ? error.message : "The agent did not answer";
     writeEvent({ type: "RUN_ERROR", message });
+  }
+}
+
+function wantsStoredFile(question: string, reply: string): boolean {
+  if (asksToSeeAsset(question)) {
+    return true;
+  }
+  return /\b(image|images|video|videos|poster|picture|photo|clip|still)\b/i.test(reply) && /\b(ready|review|generating|created|waiting)\b/i.test(reply);
+}
+
+function preferredKind(text: string): StoredAssetKind {
+  const image = /\b(image|images|poster|picture|photo|still|stills)\b/i.test(text);
+  const video = /\b(video|videos|clip|clips)\b/i.test(text);
+  if (image && !video) {
+    return "image";
+  }
+  if (video && !image) {
+    return "video";
+  }
+  return "either";
+}
+
+async function storedAsset(
+  options: { loadStoredAsset?: (prefer: StoredAssetKind) => Promise<CampaignAsset | undefined> },
+  text: string,
+): Promise<CampaignAsset | undefined> {
+  try {
+    return await (options.loadStoredAsset ?? latestStoredAsset)(preferredKind(text));
+  } catch {
+    return undefined;
+  }
+}
+
+async function rememberedAsset(
+  options: {
+    userId: string;
+    existingSession?: string;
+    priorAsset?: CampaignAsset;
+    loadPriorAsset?: (userId: string, sessionId: string) => Promise<CampaignAsset | undefined>;
+  },
+  sessionId: string,
+): Promise<CampaignAsset | undefined> {
+  if (options.priorAsset) {
+    return options.priorAsset;
+  }
+  if (!options.existingSession) {
+    return undefined;
+  }
+  try {
+    return await (options.loadPriorAsset ?? latestSessionAsset)(options.userId, sessionId);
+  } catch {
+    return undefined;
   }
 }
 

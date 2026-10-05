@@ -12,6 +12,7 @@ from google.adk.agents import LlmAgent
 from google.auth import default
 from google.auth.transport.requests import Request
 
+from .surface import attach_created_asset
 from .surface import present_to_operator
 
 LOCATION = "us-central1"
@@ -111,10 +112,11 @@ root_agent = LlmAgent(
         "Use kind video when the result is a video or includes gcsPrefix, otherwise image. "
         "Pass status REVIEW or GENERATING from the result. "
         "If the specialist text contains a line ASSET <id> <image|video> <REVIEW|GENERATING>, "
-        "copy those three fields into the tool and keep that line in the summary. "
+        "copy the last such line into the tool and keep that line in the summary. "
         "Your final text must be the same summary the tool returns."
     ),
     tools=[present_to_operator],
+    before_tool_callback=attach_created_asset,
     sub_agents=[
         delivery_agent,
         insights_agent,

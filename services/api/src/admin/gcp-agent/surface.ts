@@ -10,7 +10,8 @@ export type CampaignAsset = {
 };
 
 export function findAsset(text: string): CampaignAsset | undefined {
-  const line = text.match(ASSET_LINE);
+  const lines = [...text.matchAll(new RegExp(ASSET_LINE, "gi"))];
+  const line = lines.at(-1);
   if (line?.[1] && line[2] && line[3]) {
     return assetFrom(line[1], line[2], line[3]);
   }
@@ -23,6 +24,36 @@ export function findAsset(text: string): CampaignAsset | undefined {
     return undefined;
   }
   return { assetId: id, kind, status: statusFrom(kind, text) };
+}
+
+export function findAssetInValue(value: unknown): CampaignAsset | undefined {
+  return walkForAsset(value, 0);
+}
+
+export function latestAsset(events: unknown[]): CampaignAsset | undefined {
+  let found: CampaignAsset | undefined;
+  for (const event of events) {
+    const asset = findAssetInValue(event);
+    if (asset) {
+      found = asset;
+    }
+  }
+  return found;
+}
+
+export function readA2ui(value: unknown): A2uiMessage[] | undefined {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed.startsWith("[") && !trimmed.startsWith("{")) {
+      return undefined;
+    }
+    try {
+      return readA2ui(JSON.parse(trimmed) as unknown);
+    } catch {
+      return undefined;
+    }
+  }
+  return isA2uiList(value) ? value : undefined;
 }
 
 export function displayText(text: string, asset: CampaignAsset | undefined): string {
@@ -86,12 +117,17 @@ export function buildA2ui(text: string, surfaceId: string, asset: CampaignAsset 
 export function messagesFromSessionEvents(events: unknown[]): GcpAgentChatMessage[] {
   const messages: GcpAgentChatMessage[] = [];
   let pending: A2uiMessage[] | undefined;
+  let carried: CampaignAsset | undefined;
   for (const event of events) {
     const role = roleOf(event);
     const parts = partsOf(event);
     const toolSurface = a2uiFromParts(parts);
     if (toolSurface) {
       pending = toolSurface;
+    }
+    const discovered = findAssetInValue(event);
+    if (discovered) {
+      carried = discovered;
     }
     const text = textFromParts(parts);
     if (!text || isHandoff(text)) {
@@ -101,14 +137,27 @@ export function messagesFromSessionEvents(events: unknown[]): GcpAgentChatMessag
       messages.push({ role: "user", text, a2ui: [] });
       continue;
     }
-    const asset = findAsset(text);
-    const a2ui = pending ?? buildA2ui(text, `s_${messages.length}`, asset);
+    const asset = carried ?? findAsset(text);
+    if (asset && text.replace(ASSET_LINE, "").trim() === "") {
+      carried = asset;
+      continue;
+    }
+    const a2ui = surfaceForReply(pending, text, `s_${messages.length}`, asset);
+    if (surfaceHasAsset(a2ui)) {
+      carried = undefined;
+    }
     pending = undefined;
     messages.push({ role: "agent", text: displayText(text, asset), a2ui });
   }
   const last = messages.at(-1);
-  if (pending && last?.role === "agent") {
+  if (pending && last?.role === "agent" && (!carried || surfaceHasAsset(pending))) {
     last.a2ui = pending;
+    if (surfaceHasAsset(pending)) {
+      carried = undefined;
+    }
+  }
+  if (carried && last?.role === "agent" && !surfaceHasAsset(last.a2ui)) {
+    last.a2ui = buildA2ui(last.text, `s_${messages.length}`, carried);
   }
   return messages;
 }
@@ -245,12 +294,128 @@ function a2uiFromParts(parts: unknown[]): A2uiMessage[] | undefined {
     }
     const payload = asRecord(response.response) ?? response;
     const nested = asRecord(payload.result);
-    const candidate = isA2uiList(payload.a2ui) ? payload.a2ui : nested && isA2uiList(nested.a2ui) ? nested.a2ui : undefined;
+    const candidate = readA2ui(payload.a2ui) ?? (nested ? readA2ui(nested.a2ui) : undefined);
     if (candidate) {
       return candidate;
     }
   }
   return undefined;
+}
+
+function surfaceForReply(
+  pending: A2uiMessage[] | undefined,
+  text: string,
+  surfaceId: string,
+  asset: CampaignAsset | undefined,
+): A2uiMessage[] {
+  if (pending && (!asset || surfaceHasAsset(pending))) {
+    return pending;
+  }
+  return buildA2ui(text, surfaceId, asset);
+}
+
+function surfaceHasAsset(messages: A2uiMessage[]): boolean {
+  for (const message of messages) {
+    const update = asRecord(message.updateComponents);
+    const components = update?.components;
+    if (!Array.isArray(components)) {
+      continue;
+    }
+    if (components.some((component) => asRecord(component)?.component === "Asset")) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function walkForAsset(value: unknown, depth: number): CampaignAsset | undefined {
+  if (depth > 8) {
+    return undefined;
+  }
+  if (typeof value === "string") {
+    if (value.length > 20_000) {
+      return undefined;
+    }
+    const fromText = findAsset(value);
+    if (fromText) {
+      return fromText;
+    }
+    const trimmed = value.trim();
+    if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) {
+      return undefined;
+    }
+    try {
+      return walkForAsset(JSON.parse(trimmed) as unknown, depth + 1);
+    } catch {
+      return undefined;
+    }
+  }
+  if (Array.isArray(value)) {
+    let found: CampaignAsset | undefined;
+    for (const item of value) {
+      const next = walkForAsset(item, depth + 1);
+      if (next) {
+        found = next;
+      }
+    }
+    return found;
+  }
+  const record = asRecord(value);
+  if (!record) {
+    return undefined;
+  }
+  let found = assetFromFields(record);
+  for (const nested of Object.values(record)) {
+    const next = walkForAsset(nested, depth + 1);
+    if (next) {
+      found = next;
+    }
+  }
+  return found;
+}
+
+function assetFromFields(record: Record<string, unknown>): CampaignAsset | undefined {
+  const rawId = record.assetId ?? record.asset_id;
+  if (typeof rawId !== "string" || !/^asset_[a-f0-9]{12}$/i.test(rawId)) {
+    return undefined;
+  }
+  const kind = kindFromFields(record);
+  if (!kind) {
+    return undefined;
+  }
+  return { assetId: rawId, kind, status: statusFromFields(record, kind) };
+}
+
+function kindFromFields(record: Record<string, unknown>): CampaignAsset["kind"] | undefined {
+  const kind = typeof record.kind === "string" ? record.kind.toLowerCase() : "";
+  if (kind === "image" || kind === "video") {
+    return kind;
+  }
+  if (typeof record.gcsPrefix === "string" || typeof record.operationName === "string") {
+    return "video";
+  }
+  const uri = typeof record.gcsUri === "string" ? record.gcsUri : "";
+  if (uri.includes("/campaigns/") || uri.endsWith(".png")) {
+    return "image";
+  }
+  return undefined;
+}
+
+function statusFromFields(record: Record<string, unknown>, kind: CampaignAsset["kind"]): CampaignAsset["status"] {
+  const status = typeof record.status === "string" ? record.status.toUpperCase() : "";
+  if (status === "REVIEW" || status === "GENERATING") {
+    return status;
+  }
+  switch (kind) {
+    case "image":
+      return "REVIEW";
+    case "video":
+      return "GENERATING";
+    default: {
+      const unexpected: never = kind;
+      return unexpected;
+    }
+  }
 }
 
 function isA2uiList(value: unknown): value is A2uiMessage[] {

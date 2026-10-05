@@ -73,6 +73,86 @@ describe("ag-ui translation", () => {
     assert.equal(messages.some((item) => JSON.stringify(item).includes("Asset")), true);
   });
 
+  it("shows an image card from the tool result when the reply omits the asset line", () => {
+    const state = createTranslateState();
+    translateAdkEvent(
+      {
+        author: "marketing_agent",
+        content: {
+          parts: [
+            {
+              functionResponse: {
+                name: "create_campaign_image",
+                response: {
+                  assetId: "asset_889f315b5590",
+                  status: "REVIEW",
+                  gcsUri: "gs://smartshop-marketing/campaigns/asset_889f315b5590.png",
+                },
+              },
+            },
+          ],
+        },
+      },
+      state,
+      "run-asset",
+    );
+    translateAdkEvent(
+      { content: { parts: [{ text: "Your coffee mug campaign image is ready and waiting for review!" }] } },
+      state,
+      "run-asset",
+    );
+    const done = finishTranslation(state, "run-asset");
+    const activity = done.find((event) => event.type === "ACTIVITY_SNAPSHOT");
+    assert.match(JSON.stringify(activity), /asset_889f315b5590/);
+    assert.match(JSON.stringify(activity), /"component":"Asset"/);
+  });
+
+  it("shows the newest stored image when the reply says it is ready", async () => {
+    const chunks: string[] = [];
+    await writeAguiRun({
+      body: {
+        threadId: "new",
+        runId: "run-stored",
+        messages: [{ role: "user", content: "Create a coffee mug image" }],
+      },
+      userId: "user-1",
+      write: (chunk) => chunks.push(chunk),
+      createSession: async () => "session-stored",
+      loadStoredAsset: async (prefer) => {
+        assert.equal(prefer, "image");
+        return { assetId: "asset_889f315b5590", kind: "image", status: "REVIEW" };
+      },
+      streamEvents: async function* () {
+        yield { content: { parts: [{ text: "Your coffee mug campaign image is ready and waiting for review!" }] } };
+      },
+    });
+    const events = chunks.map((chunk) => JSON.parse(chunk.replace(/^data: /, "").trim()) as AguiEvent);
+    const activity = events.find((event) => event.type === "ACTIVITY_SNAPSHOT");
+    assert.match(JSON.stringify(activity), /asset_889f315b5590/);
+    assert.match(JSON.stringify(activity), /"component":"Asset"/);
+  });
+
+  it("shows the earlier image when the operator asks where it is", async () => {
+    const chunks: string[] = [];
+    await writeAguiRun({
+      body: {
+        threadId: "session-1",
+        runId: "run-see",
+        messages: [{ role: "user", content: "where can I see the image?" }],
+      },
+      userId: "user-1",
+      existingSession: "session-1",
+      priorAsset: { assetId: "asset_889f315b5590", kind: "image", status: "REVIEW" },
+      write: (chunk) => chunks.push(chunk),
+      streamEvents: async function* () {
+        yield { content: { parts: [{ text: "The image is waiting for review." }] } };
+      },
+    });
+    const events = chunks.map((chunk) => JSON.parse(chunk.replace(/^data: /, "").trim()) as AguiEvent);
+    const activity = events.find((event) => event.type === "ACTIVITY_SNAPSHOT");
+    assert.match(JSON.stringify(activity), /asset_889f315b5590/);
+  });
+
   it("adds approve and reject actions after the inventory agent", () => {
     const state = createTranslateState();
     translateAdkEvent(

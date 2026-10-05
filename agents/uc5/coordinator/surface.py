@@ -74,11 +74,58 @@ def _messages(
     ]
 
 
+def attach_created_asset(tool: object, args: dict[str, object], tool_context: object) -> None:
+    """Copy the newest specialist asset into present_to_operator when the model omits it."""
+    if getattr(tool, "name", "") != "present_to_operator" or not isinstance(args, dict):
+        return None
+    summary = str(args.get("summary") or "")
+    asset_id, kind, status = _asset_line(summary)
+    if not asset_id:
+        asset_id, kind, status = _latest_session_asset(getattr(tool_context, "session", None))
+    if not asset_id:
+        return None
+    if not str(args.get("asset_id") or "").strip():
+        args["asset_id"] = asset_id
+    if not str(args.get("kind") or "").strip():
+        args["kind"] = kind
+    if not str(args.get("status") or "").strip():
+        args["status"] = status
+    line = f"ASSET {asset_id} {kind} {status}"
+    if line not in summary:
+        args["summary"] = f"{summary}\n{line}".strip()
+    return None
+
+
 def _asset_line(summary: str) -> tuple[str, str, str]:
-    match = ASSET_LINE.search(summary)
-    if not match:
+    matches = list(ASSET_LINE.finditer(summary))
+    if not matches:
         return "", "", ""
+    match = matches[-1]
     return match.group(1), match.group(2).lower(), match.group(3).upper()
+
+
+def _latest_session_asset(session: object) -> tuple[str, str, str]:
+    found = ("", "", "")
+    for event in getattr(session, "events", None) or []:
+        parsed = _asset_line(_event_text(event))
+        if parsed[0]:
+            found = parsed
+    return found
+
+
+def _event_text(event: object) -> str:
+    content = getattr(event, "content", None)
+    parts = getattr(content, "parts", None) or []
+    chunks: list[str] = []
+    for part in parts:
+        text = getattr(part, "text", None)
+        if isinstance(text, str):
+            chunks.append(text)
+        for name in ("function_response", "function_call"):
+            payload = getattr(part, name, None)
+            if payload is not None:
+                chunks.append(repr(payload))
+    return "\n".join(chunks)
 
 
 def _asset_ok(asset_id: str, kind: str, status: str) -> bool:

@@ -1858,8 +1858,63 @@ button.chat-send {
 
 .gcp-chat {
   flex: 1;
-  min-height: 32rem;
-  height: calc(100vh - 12rem);
+  min-height: 28rem;
+  height: min(40rem, calc(100vh - 18rem));
+}
+
+.gcp-log {
+  margin-top: 1.5rem;
+}
+
+.gcp-log h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1.15rem;
+}
+
+.gcp-log ol {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+  max-height: 32rem;
+  overflow: auto;
+}
+
+.gcp-log li {
+  display: grid;
+  gap: 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: 0.8rem;
+  background: white;
+  padding: 0.75rem 0.9rem;
+}
+
+.gcp-log-title {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.75rem;
+  align-items: baseline;
+}
+
+.gcp-log-title span,
+.gcp-log li > div > span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.gcp-log code {
+  overflow-wrap: anywhere;
+}
+
+.gcp-log pre {
+  margin: 0.25rem 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.82rem;
+  background: #f6f7f8;
+  border-radius: 0.5rem;
+  padding: 0.55rem 0.7rem;
 }
 
 .gcp-chat [data-copilotkit] {

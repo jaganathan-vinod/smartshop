@@ -1,5 +1,5 @@
 import { SMARTSHOP_AGUI_ACTIVITY, type A2uiMessage } from "@smartshop/shared";
-import { buildA2ui, findAsset } from "./surface.js";
+import { buildA2ui, findAsset, findAssetInValue, readA2ui, type CampaignAsset } from "./surface.js";
 
 export const A2UI_ACTIVITY_TYPE = SMARTSHOP_AGUI_ACTIVITY;
 
@@ -20,6 +20,8 @@ export type TranslateState = {
   activitySent: boolean;
   lastText: string;
   messageCount: number;
+  asset?: CampaignAsset;
+  fallbackAsset?: CampaignAsset;
 };
 
 export function createTranslateState(): TranslateState {
@@ -85,6 +87,10 @@ export function translateAdkEvent(event: unknown, state: TranslateState, runId: 
   if (author === "user" || role === "user") {
     return events;
   }
+  const discovered = findAssetInValue(record);
+  if (discovered) {
+    state.asset = discovered;
+  }
   const parts = Array.isArray(content?.parts) ? content.parts : [];
   for (const part of parts) {
     const call = functionCall(part);
@@ -112,7 +118,7 @@ export function finishTranslation(state: TranslateState, runId: string): AguiEve
   const events: AguiEvent[] = [];
   finishStep(state, events);
   finishMessage(state, events);
-  const asset = findAsset(state.lastText);
+  const asset = state.asset ?? findAsset(state.lastText) ?? state.fallbackAsset;
   if (!state.activitySent && (asset || state.specialist === "inventory_agent") && state.lastText) {
     emitActivity(state, events, runId, buildA2ui(state.lastText, `s_${runId}`, asset));
   }
@@ -277,8 +283,7 @@ function a2uiFromResponse(part: unknown): A2uiMessage[] | undefined {
   }
   const payload = asRecord(response.response) ?? response;
   const nested = asRecord(payload.result);
-  const candidate = isA2uiList(payload.a2ui) ? payload.a2ui : nested && isA2uiList(nested.a2ui) ? nested.a2ui : undefined;
-  return candidate;
+  return readA2ui(payload.a2ui) ?? (nested ? readA2ui(nested.a2ui) : undefined);
 }
 
 function agentName(args: unknown): string {
@@ -325,8 +330,8 @@ function userText(message: unknown): string {
     .trim();
 }
 
-function isA2uiList(value: unknown): value is A2uiMessage[] {
-  return Array.isArray(value) && value.every((item) => asRecord(item)?.version === "v0.9");
+export function asksToSeeAsset(text: string): boolean {
+  return /\b(where|show|see|view|open|review|download)\b/i.test(text) && /\b(image|images|video|videos|poster|picture|photo|clip|still|file|asset|it)\b/i.test(text);
 }
 
 function parseLines(lines: string[]): unknown[] {

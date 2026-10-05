@@ -3,10 +3,12 @@ import { CopilotChat, CopilotKit } from "@copilotkit/react-core/v2";
 import "@copilotkit/react-core/v2/styles.css";
 import {
   gcpAgentSessionIdSchema,
+  gcpAgentTraceEntrySchema,
   SMARTSHOP_AGUI_ACTIVITY,
   type A2uiMessage,
   type GcpAgentChatMessage,
   type GcpAgentSessionSummary,
+  type GcpAgentTraceEntry,
 } from "@smartshop/shared";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, useNavigate, useParams } from "react-router-dom";
@@ -39,6 +41,7 @@ export function AdminGcpAgentsPage() {
   const [chatKey, setChatKey] = useState(() => sessionId ?? `new-${Date.now()}`);
   const createdHere = useRef<string | undefined>(undefined);
   const [listVersion, setListVersion] = useState(0);
+  const [trace, setTrace] = useState<GcpAgentTraceEntry[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -87,6 +90,7 @@ export function AdminGcpAgentsPage() {
 
   function startNew() {
     createdHere.current = undefined;
+    setTrace([]);
     setChatKey(`new-${Date.now()}`);
     navigate("/admin/agents-gcp");
   }
@@ -135,9 +139,12 @@ export function AdminGcpAgentsPage() {
             }}
             onFinished={() => setListVersion((current) => current + 1)}
             onRunError={(message) => setError(message)}
+            onTraceAppend={(entry) => setTrace((current) => [...current, entry])}
+            onTraceReplace={setTrace}
           />
         ) : null}
         {configReady && !streamUrl ? <p className="muted">The assistant stream is not configured yet.</p> : null}
+        <AgentLog entries={trace} />
       </div>
     </section>
   );
@@ -149,12 +156,16 @@ function GcpAssistant({
   onSession,
   onFinished,
   onRunError,
+  onTraceAppend,
+  onTraceReplace,
 }: {
   streamUrl: string;
   sessionId: string | undefined;
   onSession: (sessionId: string) => void;
   onFinished: () => void;
   onRunError: (message: string) => void;
+  onTraceAppend: (entry: GcpAgentTraceEntry) => void;
+  onTraceReplace: (entries: GcpAgentTraceEntry[]) => void;
 }) {
   const boundSession = useRef(sessionId);
   const agent = useMemo(
@@ -176,9 +187,13 @@ function GcpAssistant({
   const onSessionRef = useRef(onSession);
   const onFinishedRef = useRef(onFinished);
   const onRunErrorRef = useRef(onRunError);
+  const onTraceAppendRef = useRef(onTraceAppend);
+  const onTraceReplaceRef = useRef(onTraceReplace);
   onSessionRef.current = onSession;
   onFinishedRef.current = onFinished;
   onRunErrorRef.current = onRunError;
+  onTraceAppendRef.current = onTraceAppend;
+  onTraceReplaceRef.current = onTraceReplace;
 
   useEffect(() => {
     const pending = { sessionId: undefined as string | undefined };
@@ -200,6 +215,27 @@ function GcpAssistant({
       onRunFinishedEvent() {
         adopt();
         onFinishedRef.current();
+        const id = boundSession.current;
+        if (!id) {
+          return;
+        }
+        getGcpAgentSession(id)
+          .then((detail) => {
+            const next = detail.trace ?? [];
+            if (next.length > 0) {
+              onTraceReplaceRef.current(next);
+            }
+          })
+          .catch(() => undefined);
+      },
+      onCustomEvent({ event }) {
+        if (event.name !== "smartshop.trace") {
+          return;
+        }
+        const parsed = gcpAgentTraceEntrySchema.safeParse(event.value);
+        if (parsed.success) {
+          onTraceAppendRef.current(parsed.data);
+        }
       },
       onRunErrorEvent({ event }) {
         adopt();
@@ -216,7 +252,11 @@ function GcpAssistant({
     let cancelled = false;
     getGcpAgentSession(sessionId)
       .then((detail) => {
-        if (!cancelled && detail.messages.length > 0 && agent.messages.length === 0) {
+        if (cancelled) {
+          return;
+        }
+        onTraceReplaceRef.current(detail.trace ?? []);
+        if (detail.messages.length > 0 && agent.messages.length === 0) {
           agent.setMessages(historyMessages(detail.messages));
         }
       })
@@ -282,6 +322,65 @@ function interactiveSurface(messages: A2uiMessage[]): boolean {
       return component.component === "Asset" || component.component === "Button" || component.component === "Card";
     });
   });
+}
+
+function AgentLog({ entries }: { entries: GcpAgentTraceEntry[] }) {
+  return (
+    <section className="gcp-log" aria-label="Agent log">
+      <h2>Run log</h2>
+      <p className="muted">
+        What was sent to the coordinator, which specialist it called, and each Google API input and output.
+      </p>
+      {entries.length === 0 ? <p className="muted">No calls yet.</p> : null}
+      <ol>
+        {entries.map((entry, index) => (
+          <li key={`${entry.kind}-${entry.name}-${index}`}>
+            <div className="gcp-log-title">
+              <span>{kindLabel(entry.kind)}</span>
+              <strong>{entry.name}</strong>
+              <small>{entry.actor}</small>
+            </div>
+            {entry.detail ? <code>{entry.detail}</code> : null}
+            {entry.input !== undefined ? (
+              <div>
+                <span>Input</span>
+                <pre>{formatValue(entry.input)}</pre>
+              </div>
+            ) : null}
+            {entry.output !== undefined ? (
+              <div>
+                <span>Output</span>
+                <pre>{formatValue(entry.output)}</pre>
+              </div>
+            ) : null}
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+function kindLabel(kind: GcpAgentTraceEntry["kind"]): string {
+  switch (kind) {
+    case "coordinator_input":
+      return "Sent to coordinator";
+    case "agent_call":
+      return "Specialist";
+    case "google_api":
+      return "Google API";
+    case "tool":
+      return "Tool";
+    case "output":
+      return "Output";
+    default: {
+      const unexpected: never = kind;
+      return unexpected;
+    }
+  }
+}
+
+function formatValue(value: unknown): string {
+  return typeof value === "string" ? value : JSON.stringify(value, null, 2);
 }
 
 function validSessionId(value: string | undefined): string | undefined {

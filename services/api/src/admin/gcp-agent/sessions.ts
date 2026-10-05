@@ -2,12 +2,22 @@ import type { GcpAgentSession, GcpAgentSessionSummary } from "@smartshop/shared"
 import { googleAccessToken } from "../routes-map/client.js";
 import { routeMapConfig } from "../routes-map/query.js";
 import { GCP_AGENT_ENGINE_ID, GCP_AGENT_LOCATION, GcpAgentError } from "./query.js";
+import { loadStoredMarketingTraces } from "./assets.js";
+import {
+  appendStoredCalls,
+  assetIdsInTrace,
+  coordinatorPrompts,
+  needsMarketingDetail,
+  traceFromEvents,
+} from "./trace.js";
 import {
   eventsFromPayload,
+  latestAsset,
   messagesFromSessionEvents,
   nextPageToken,
   sessionOwner,
   sessionRecords,
+  type CampaignAsset,
 } from "./surface.js";
 
 const CLOUD_SCOPE = "https://www.googleapis.com/auth/cloud-platform";
@@ -47,6 +57,19 @@ export async function listGcpSessions(
   return summaries.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
 }
 
+export async function latestSessionAsset(
+  userId: string,
+  sessionId: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<CampaignAsset | undefined> {
+  const token = await googleAccessToken([CLOUD_SCOPE]);
+  const session = await getJson(token, sessionUrl(sessionId), fetchImpl);
+  if (session === undefined || sessionOwner(session) !== userId) {
+    return undefined;
+  }
+  return latestAsset(await readEvents(token, sessionId, fetchImpl));
+}
+
 export async function getGcpSession(
   userId: string,
   sessionId: string,
@@ -62,7 +85,23 @@ export async function getGcpSession(
     throw new GcpSessionNotFound();
   }
   const events = await readEvents(token, sessionId, fetchImpl);
-  return { sessionId, messages: messagesFromSessionEvents(events) };
+  const trace = traceFromEvents(events, sessionId);
+  return { sessionId, messages: messagesFromSessionEvents(events), trace: await withMarketingTraces(trace, fetchImpl) };
+}
+
+async function withMarketingTraces(
+  trace: ReturnType<typeof traceFromEvents>,
+  fetchImpl: typeof fetch,
+): Promise<ReturnType<typeof traceFromEvents>> {
+  if (!needsMarketingDetail(trace) && assetIdsInTrace(trace).length === 0) {
+    return trace;
+  }
+  try {
+    const calls = await loadStoredMarketingTraces(coordinatorPrompts(trace), assetIdsInTrace(trace), fetchImpl);
+    return appendStoredCalls(trace, calls);
+  } catch {
+    return trace;
+  }
 }
 
 async function readEvents(token: string, sessionId: string, fetchImpl: typeof fetch): Promise<unknown[]> {

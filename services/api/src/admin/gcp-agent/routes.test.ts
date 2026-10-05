@@ -5,6 +5,7 @@ import { Hono } from "hono";
 import { runWithClaims } from "../../auth.js";
 import { replyFromAgentEvents, sessionIdFromPayload } from "./query.js";
 import { registerAdminGcpAgentRoutes } from "./routes.js";
+import { pickLatestAsset } from "./assets.js";
 import { buildA2ui, findAsset, messagesFromSessionEvents, sessionRecords, turnFromAgentEvents } from "./surface.js";
 import type { A2uiMessage } from "@smartshop/shared";
 
@@ -23,6 +24,18 @@ describe("gcp agent replies", () => {
 
   it("reads a session id from the create response", () => {
     assert.equal(sessionIdFromPayload({ output: { id: "sess_1" } }), "sess_1");
+  });
+
+  it("picks the newest stored still or video", () => {
+    const asset = pickLatestAsset(
+      [
+        { name: "campaigns/asset_aaaaaaaaaaaa.png", updated: "2026-10-04T00:00:00Z" },
+        { name: "videos/asset_bbbbbbbbbbbb/clip.mp4", updated: "2026-10-04T01:00:00Z" },
+        { name: "campaigns/notes.txt", updated: "2026-10-04T02:00:00Z" },
+      ],
+      "image",
+    );
+    assert.deepEqual(asset, { assetId: "asset_aaaaaaaaaaaa", kind: "image", status: "REVIEW" });
   });
 
   it("builds an asset surface from the specialist line", () => {
@@ -55,6 +68,37 @@ describe("gcp agent replies", () => {
     ]);
     assert.equal(messages[0]?.text, "How long is the drive?");
     assert.equal(messages[1]?.a2ui, surface);
+  });
+
+  it("attaches an image card when the tool result is stored beside the reply", () => {
+    const messages = messagesFromSessionEvents([
+      { author: "user", content: { role: "user", parts: [{ text: "Create a coffee mug image" }] } },
+      {
+        author: "marketing_agent",
+        content: {
+          parts: [
+            {
+              functionResponse: {
+                name: "create_campaign_image",
+                response: {
+                  assetId: "asset_889f315b5590",
+                  status: "REVIEW",
+                  gcsUri: "gs://smartshop-marketing/campaigns/asset_889f315b5590.png",
+                },
+              },
+            },
+          ],
+        },
+      },
+      {
+        author: "coordinator",
+        content: { parts: [{ text: "Your coffee mug campaign image is ready and waiting for review!" }] },
+      },
+    ]);
+    const card = messages.at(-1);
+    assert.equal(card?.role, "agent");
+    assert.match(JSON.stringify(card?.a2ui), /asset_889f315b5590/);
+    assert.match(JSON.stringify(card?.a2ui), /"component":"Asset"/);
   });
 
   it("reads session ids from the list payload", () => {

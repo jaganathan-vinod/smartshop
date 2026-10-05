@@ -50,9 +50,29 @@ export const gcpAgentChatMessageSchema = z.object({
 
 export type GcpAgentChatMessage = z.infer<typeof gcpAgentChatMessageSchema>;
 
+export const gcpAgentTraceKindSchema = z.enum([
+  "coordinator_input",
+  "agent_call",
+  "google_api",
+  "tool",
+  "output",
+]);
+
+export const gcpAgentTraceEntrySchema = z.object({
+  actor: z.string(),
+  kind: gcpAgentTraceKindSchema,
+  name: z.string(),
+  detail: z.string().optional(),
+  input: z.unknown().optional(),
+  output: z.unknown().optional(),
+});
+
+export type GcpAgentTraceEntry = z.infer<typeof gcpAgentTraceEntrySchema>;
+
 export const gcpAgentSessionSchema = z.object({
   sessionId: gcpAgentSessionIdSchema,
   messages: z.array(gcpAgentChatMessageSchema),
+  trace: z.array(gcpAgentTraceEntrySchema).optional(),
 });
 
 export type GcpAgentSession = z.infer<typeof gcpAgentSessionSchema>;
