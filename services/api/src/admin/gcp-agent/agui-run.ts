@@ -94,7 +94,9 @@ function wantsStoredFile(question: string, reply: string): boolean {
     return true;
   }
   const visible = visibleReply(reply);
-  return /\b(image|images|video|videos|poster|picture|photo|clip|still)\b/i.test(visible) && /\b(ready|review|generating|created|waiting)\b/i.test(visible);
+  const mentionsFile = /\b(image|images|video|videos|poster|picture|photo|clip|still|stills)\b/i.test(visible);
+  const fileIsReady = /\b(ready|generating|created|waiting)\b/i.test(visible);
+  return mentionsFile && fileIsReady;
 }
 
 function preferredKind(text: string): StoredAssetKind {

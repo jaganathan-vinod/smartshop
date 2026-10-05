@@ -223,6 +223,33 @@ describe("ag-ui translation", () => {
     assert.match(JSON.stringify(activity), /"component":"Asset"/);
   });
 
+  it("does not attach a stored image to a list of agents", async () => {
+    const chunks: string[] = [];
+    const reply = [
+      "I can route your questions to these specialists:",
+      "marketing_agent: Creates social-campaign stills and short videos for review.",
+      "standards_agent: Answers from approved Drive files and Cloud Storage manuals, with citations.",
+    ].join("\n");
+    await writeAguiRun({
+      body: {
+        threadId: "new",
+        runId: "run-roster",
+        messages: [{ role: "user", content: "what are the agents available" }],
+      },
+      userId: "user-1",
+      write: (chunk) => chunks.push(chunk),
+      createSession: async () => "session-roster",
+      loadStoredAsset: async () => {
+        throw new Error("a roster should not load a stored file");
+      },
+      streamEvents: async function* () {
+        yield { content: { parts: [{ text: reply }] } };
+      },
+    });
+    const events = chunks.map((chunk) => JSON.parse(chunk.replace(/^data: /, "").trim()) as AguiEvent);
+    assert.equal(events.some((event) => event.type === "ACTIVITY_SNAPSHOT"), false);
+  });
+
   it("shows the earlier image when the operator asks where it is", async () => {
     const chunks: string[] = [];
     await writeAguiRun({
