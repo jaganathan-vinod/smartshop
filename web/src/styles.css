@@ -1922,8 +1922,13 @@ button.chat-send {
 }
 
 .gcp-chat [data-copilotkit] button {
-  background: var(--accent);
-  color: white;
+  background-color: #147a5c;
+  color: #ffffff;
+  border-radius: 999px;
+}
+
+.gcp-chat [data-copilotkit] button * {
+  color: #ffffff;
 }
 
 @media (max-width: 800px) {
