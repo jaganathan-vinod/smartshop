@@ -27,7 +27,33 @@ export function findAsset(text: string): CampaignAsset | undefined {
 }
 
 export function findAssetInValue(value: unknown): CampaignAsset | undefined {
-  return walkForAsset(value, 0);
+  return walkExplicitAsset(value, 0) ?? walkForAsset(value, 0);
+}
+
+export function visibleReply(text: string): string {
+  return stripTraceObjects(text)
+    .replace(new RegExp(ASSET_LINE, "gi"), "")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+export function cleanSurface(messages: A2uiMessage[], asset: CampaignAsset | undefined): A2uiMessage[] {
+  let changed = false;
+  const next = messages.map((message) => {
+    const update = asRecord(message.updateComponents);
+    const components = update?.components;
+    if (!update || !Array.isArray(components)) {
+      return message;
+    }
+    const cleaned = components.map((item) => cleanComponent(item, asset));
+    if (cleaned.some((item, index) => item !== components[index])) {
+      changed = true;
+      return { ...message, updateComponents: { ...update, components: cleaned } };
+    }
+    return message;
+  });
+  return changed ? next : messages;
 }
 
 export function latestAsset(events: unknown[]): CampaignAsset | undefined {
@@ -57,7 +83,7 @@ export function readA2ui(value: unknown): A2uiMessage[] | undefined {
 }
 
 export function displayText(text: string, asset: CampaignAsset | undefined): string {
-  const stripped = text.replace(ASSET_LINE, "").trim();
+  const stripped = visibleReply(text);
   if (stripped) {
     return stripped;
   }
@@ -77,11 +103,11 @@ export function displayText(text: string, asset: CampaignAsset | undefined): str
 }
 
 export function buildA2ui(text: string, surfaceId: string, asset: CampaignAsset | undefined): A2uiMessage[] {
-  const children = asset ? ["summary", "asset"] : ["summary"];
-  const components: Record<string, unknown>[] = [
-    { id: "root", component: "Column", children },
-    { id: "summary", component: "Text", text: displayText(text, asset), variant: "body" },
-  ];
+  const children = asset ? ["asset"] : ["summary"];
+  const components: Record<string, unknown>[] = [{ id: "root", component: "Column", children }];
+  if (!asset) {
+    components.push({ id: "summary", component: "Text", text: displayText(text, asset), variant: "body" });
+  }
   if (asset) {
     components.push({
       id: "asset",
@@ -125,7 +151,7 @@ export function messagesFromSessionEvents(events: unknown[]): GcpAgentChatMessag
     if (toolSurface) {
       pending = toolSurface;
     }
-    const discovered = findAssetInValue(event);
+    const discovered = assetFromTurn(event);
     if (discovered) {
       carried = discovered;
     }
@@ -134,6 +160,8 @@ export function messagesFromSessionEvents(events: unknown[]): GcpAgentChatMessag
       continue;
     }
     if (role === "user") {
+      carried = undefined;
+      pending = undefined;
       messages.push({ role: "user", text, a2ui: [] });
       continue;
     }
@@ -142,7 +170,7 @@ export function messagesFromSessionEvents(events: unknown[]): GcpAgentChatMessag
       carried = asset;
       continue;
     }
-    const a2ui = surfaceForReply(pending, text, `s_${messages.length}`, asset);
+    const a2ui = surfaceForTurn(surfaceForReply(pending, text, `s_${messages.length}`, asset), asset);
     if (surfaceHasAsset(a2ui)) {
       carried = undefined;
     }
@@ -151,7 +179,7 @@ export function messagesFromSessionEvents(events: unknown[]): GcpAgentChatMessag
   }
   const last = messages.at(-1);
   if (pending && last?.role === "agent" && (!carried || surfaceHasAsset(pending))) {
-    last.a2ui = pending;
+    last.a2ui = surfaceForTurn(pending, carried);
     if (surfaceHasAsset(pending)) {
       carried = undefined;
     }
@@ -229,10 +257,16 @@ function assetFrom(assetId: string, kind: string, status: string): CampaignAsset
 }
 
 function kindFrom(text: string): "image" | "video" | undefined {
-  if (/\bvideo\b/i.test(text)) {
+  const cleaned = text.replace(/\b(?:not|no)\s+(?:a\s+)?videos?\b/gi, " ");
+  const video = /\bvideos?\b/i.test(cleaned);
+  const image = /\b(images?|poster|still)\b/i.test(cleaned);
+  if (image && !video) {
+    return "image";
+  }
+  if (video && !image) {
     return "video";
   }
-  if (/\b(image|poster|still)\b/i.test(text)) {
+  if (image) {
     return "image";
   }
   return undefined;
@@ -326,6 +360,178 @@ function surfaceHasAsset(messages: A2uiMessage[]): boolean {
     }
   }
   return false;
+}
+
+export function assetFromTurn(value: unknown): CampaignAsset | undefined {
+  return walkExplicitAsset(withoutOperator(value), 0) ?? walkForAsset(withoutOperator(value), 0);
+}
+
+export function surfaceForTurn(messages: A2uiMessage[], asset: CampaignAsset | undefined): A2uiMessage[] {
+  const aligned = asset ? cleanSurface(messages, asset) : stripAssets(messages);
+  return asset ? withoutAnswer(aligned) : aligned;
+}
+
+function withoutOperator(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => withoutOperator(item));
+  }
+  const record = asRecord(value);
+  if (!record) {
+    return value;
+  }
+  const response = asRecord(record.functionResponse) ?? asRecord(record.function_response);
+  if (response?.name === "present_to_operator") {
+    return undefined;
+  }
+  return Object.fromEntries(Object.entries(record).map(([key, item]) => [key, withoutOperator(item)]));
+}
+
+function stripAssets(messages: A2uiMessage[]): A2uiMessage[] {
+  let changed = false;
+  const next = messages.map((message) => {
+    const update = asRecord(message.updateComponents);
+    const components = update?.components;
+    if (!update || !Array.isArray(components) || !components.some((item) => asRecord(item)?.component === "Asset")) {
+      return message;
+    }
+    changed = true;
+    return {
+      ...message,
+      updateComponents: { ...update, components: components.filter((item) => asRecord(item)?.component !== "Asset") },
+    };
+  });
+  return changed ? next : messages;
+}
+
+function withoutAnswer(messages: A2uiMessage[]): A2uiMessage[] {
+  return messages.map((message) => {
+    const update = asRecord(message.updateComponents);
+    const components = update?.components;
+    if (!update || !Array.isArray(components)) {
+      return message;
+    }
+    const kept = components
+      .filter((item) => asRecord(item)?.id !== "summary")
+      .map((item) => {
+        const record = asRecord(item);
+        if (!record || !Array.isArray(record.children)) {
+          return item;
+        }
+        return { ...record, children: record.children.filter((child) => child !== "summary") };
+      });
+    return { ...message, updateComponents: { ...update, components: kept } };
+  });
+}
+
+function cleanComponent(item: unknown, asset: CampaignAsset | undefined): unknown {
+  const record = asRecord(item);
+  if (!record) {
+    return item;
+  }
+  if (record.component === "Text" && typeof record.text === "string") {
+    const text = visibleReply(record.text);
+    return text === record.text ? item : { ...record, text };
+  }
+  if (record.component === "Asset" && asset && (record.kind !== asset.kind || record.assetId !== asset.assetId || record.status !== asset.status)) {
+    return { ...record, assetId: asset.assetId, kind: asset.kind, status: asset.status };
+  }
+  return item;
+}
+
+function explicitAsset(text: string): CampaignAsset | undefined {
+  const lines = [...text.matchAll(new RegExp(ASSET_LINE, "gi"))];
+  const line = lines.at(-1);
+  if (!line?.[1] || !line[2] || !line[3]) {
+    return undefined;
+  }
+  return assetFrom(line[1], line[2], line[3]);
+}
+
+function walkExplicitAsset(value: unknown, depth: number): CampaignAsset | undefined {
+  if (depth > 8 || (typeof value === "string" && value.length > 20_000)) {
+    return undefined;
+  }
+  if (typeof value === "string") {
+    return explicitAsset(value);
+  }
+  if (Array.isArray(value)) {
+    let found: CampaignAsset | undefined;
+    for (const item of value) {
+      const next = walkExplicitAsset(item, depth + 1);
+      if (next) {
+        found = next;
+      }
+    }
+    return found;
+  }
+  const record = asRecord(value);
+  if (!record) {
+    return undefined;
+  }
+  let found: CampaignAsset | undefined;
+  for (const nested of Object.values(record)) {
+    const next = walkExplicitAsset(nested, depth + 1);
+    if (next) {
+      found = next;
+    }
+  }
+  return found;
+}
+
+function stripTraceObjects(text: string): string {
+  let result = "";
+  let index = 0;
+  while (index < text.length) {
+    const at = text.indexOf("TRACE", index);
+    if (at < 0) {
+      result += text.slice(index);
+      break;
+    }
+    const brace = text.indexOf("{", at);
+    if (brace < 0 || brace - at > 12) {
+      result += text.slice(index, at + 5);
+      index = at + 5;
+      continue;
+    }
+    const end = matchingBrace(text, brace);
+    if (end < 0) {
+      result += text.slice(index);
+      break;
+    }
+    result += text.slice(index, at);
+    index = end + 1;
+  }
+  return result;
+}
+
+function matchingBrace(text: string, open: number): number {
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let cursor = open; cursor < text.length; cursor += 1) {
+    const char = text[cursor];
+    if (inString) {
+      if (escape) {
+        escape = false;
+      } else if (char === "\\") {
+        escape = true;
+      } else if (char === "\"") {
+        inString = false;
+      }
+      continue;
+    }
+    if (char === "\"") {
+      inString = true;
+    } else if (char === "{") {
+      depth += 1;
+    } else if (char === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        return cursor;
+      }
+    }
+  }
+  return -1;
 }
 
 function walkForAsset(value: unknown, depth: number): CampaignAsset | undefined {

@@ -6,7 +6,7 @@ import { runWithClaims } from "../../auth.js";
 import { replyFromAgentEvents, sessionIdFromPayload } from "./query.js";
 import { registerAdminGcpAgentRoutes } from "./routes.js";
 import { pickLatestAsset } from "./assets.js";
-import { buildA2ui, findAsset, messagesFromSessionEvents, sessionRecords, turnFromAgentEvents } from "./surface.js";
+import { buildA2ui, displayText, findAsset, findAssetInValue, messagesFromSessionEvents, sessionRecords, turnFromAgentEvents } from "./surface.js";
 import type { A2uiMessage } from "@smartshop/shared";
 
 describe("gcp agent replies", () => {
@@ -43,8 +43,25 @@ describe("gcp agent replies", () => {
     assert.deepEqual(asset, { assetId: "asset_889f315b5590", kind: "image", status: "REVIEW" });
     const messages = buildA2ui("Poster ready.\nASSET asset_889f315b5590 image REVIEW", "main", asset);
     const components = componentList(messages[1]);
-    assert.equal(components.find((item) => item.component === "Text")?.text, "Poster ready.");
-    assert.equal(components.some((item) => item.component === "Asset"), true);
+    assert.equal(components.some((item) => item.component === "Text"), false);
+    assert.match(JSON.stringify(components), /"component":"Asset"/);
+    assert.match(JSON.stringify(components), /"kind":"image"/);
+  });
+
+  it("keeps an image asset when the trace text says not a video", () => {
+    const trace = JSON.stringify({
+      actor: "marketing_agent",
+      api: "Vertex AI Gemini generateContent",
+      input: { guidance: "A stylish image showcasing socks. No text overlay. Not a video." },
+      output: { httpStatus: 200, hasImage: true, assetId: "asset_8741a17229ba" },
+    });
+    const text = `The asset is waiting for review. ASSET asset_8741a17229ba image REVIEW TRACE ${trace}`;
+    assert.equal(displayText(text, findAsset(text)), "The asset is waiting for review.");
+    assert.deepEqual(findAssetInValue({ content: { parts: [{ text }] } }), {
+      assetId: "asset_8741a17229ba",
+      kind: "image",
+      status: "REVIEW",
+    });
   });
 
   it("replays user text and a tool surface", () => {

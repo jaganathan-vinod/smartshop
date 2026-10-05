@@ -105,12 +105,36 @@ def _asset_line(summary: str) -> tuple[str, str, str]:
 
 
 def _latest_session_asset(session: object) -> tuple[str, str, str]:
+    """Use an asset created after the latest user message, not one from an earlier question."""
+    events = list(getattr(session, "events", None) or [])
+    start = 0
+    for index, event in enumerate(events):
+        if _is_user(event):
+            start = index + 1
     found = ("", "", "")
-    for event in getattr(session, "events", None) or []:
+    for event in events[start:]:
+        if _is_operator(event):
+            continue
         parsed = _asset_line(_event_text(event))
         if parsed[0]:
             found = parsed
     return found
+
+
+def _is_user(event: object) -> bool:
+    content = getattr(event, "content", None)
+    role = getattr(content, "role", None) or getattr(event, "author", None)
+    return role == "user"
+
+
+def _is_operator(event: object) -> bool:
+    content = getattr(event, "content", None)
+    for part in getattr(content, "parts", None) or []:
+        for name in ("function_call", "function_response"):
+            payload = getattr(part, name, None)
+            if getattr(payload, "name", None) == "present_to_operator":
+                return True
+    return False
 
 
 def _event_text(event: object) -> str:

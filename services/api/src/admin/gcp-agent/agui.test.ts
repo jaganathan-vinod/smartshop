@@ -40,6 +40,60 @@ describe("ag-ui translation", () => {
     assert.equal(done.at(-1)?.type, "TEXT_MESSAGE_END");
   });
 
+  it("hides trace payloads and keeps the image card", () => {
+    const state = createTranslateState();
+    const trace = JSON.stringify({
+      api: "Vertex AI Gemini generateContent",
+      input: { guidance: "A stylish image showcasing socks. Not a video." },
+      output: { assetId: "asset_8741a17229ba", hasImage: true },
+    });
+    const text = `The asset is waiting for review. ASSET asset_8741a17229ba image REVIEW TRACE ${trace}`;
+    const videoCard = buildA2ui("ignored", "main", { assetId: "asset_8741a17229ba", kind: "video", status: "REVIEW" });
+    const events = translateAdkEvent(
+      {
+        content: {
+          parts: [
+            { text },
+            { functionResponse: { name: "present_to_operator", response: { a2ui: videoCard, summary: text } } },
+          ],
+        },
+      },
+      state,
+      "run-socks",
+    );
+    const deltas = events.filter((event) => event.type === "TEXT_MESSAGE_CONTENT").map((event) => event.delta);
+    assert.deepEqual(deltas, ["The asset is waiting for review."]);
+    const activity = events.find((event) => event.type === "ACTIVITY_SNAPSHOT");
+    assert.match(JSON.stringify(activity), /"kind":"image"/);
+    assert.equal(JSON.stringify(activity).includes("TRACE"), false);
+  });
+
+  it("does not pin an older video on a drive-time answer", () => {
+    const state = createTranslateState();
+    const stale = buildA2ui("The drive time is 9 minutes.", "main", {
+      assetId: "asset_8741a17229ba",
+      kind: "video",
+      status: "REVIEW",
+    });
+    const events = translateAdkEvent(
+      {
+        content: {
+          parts: [
+            { text: "The drive time from 750 Market St to 1 Market St is 9 minutes and 6 seconds (1.7 km). A nearby grocer is the Ferry Building." },
+            { functionResponse: { name: "present_to_operator", response: { a2ui: stale } } },
+          ],
+        },
+      },
+      state,
+      "run-drive",
+    );
+    assert.equal(events.some((event) => event.type === "ACTIVITY_SNAPSHOT"), false);
+    assert.equal(
+      events.filter((event) => event.type === "TEXT_MESSAGE_CONTENT").map((event) => event.delta).join(""),
+      "The drive time from 750 Market St to 1 Market St is 9 minutes and 6 seconds (1.7 km). A nearby grocer is the Ferry Building.",
+    );
+  });
+
   it("shows a specialist step and an asset card", () => {
     const state = createTranslateState();
     const step = translateAdkEvent(
@@ -53,7 +107,10 @@ describe("ag-ui translation", () => {
     );
     assert.equal(step[0]?.stepName, "Asking the delivery agent");
     const answer = translateAdkEvent(
-      { author: "delivery_agent", content: { parts: [{ text: "The drive is 12 minutes." }] } },
+      {
+        author: "marketing_agent",
+        content: { parts: [{ text: "The asset is waiting for review.\nASSET asset_889f315b5590 image REVIEW" }] },
+      },
       state,
       "run-2",
     );

@@ -1,5 +1,3 @@
-import json
-
 from google.adk.agents import LlmAgent
 from google.genai import types
 
@@ -37,22 +35,14 @@ def append_asset_line(callback_context: object, llm_response: object) -> object 
     """Add the stored asset line when the model leaves it out of the reply."""
     state = getattr(callback_context, "state", None)
     line = state.get("asset_line") if hasattr(state, "get") else None
-    traces = state.get("api_traces") if hasattr(state, "get") else None
-    trace_lines = []
-    if isinstance(traces, list):
-        for item in traces:
-            if isinstance(item, dict):
-                trace_lines.append(f"TRACE {json.dumps(item, separators=(',', ':'))}")
-    if not isinstance(line, str):
-        line = ""
-    if not line and not trace_lines:
+    if not isinstance(line, str) or not line:
         return None
     content = getattr(llm_response, "content", None)
     parts = list(getattr(content, "parts", None) or [])
     if not content or not parts or any(getattr(part, "function_call", None) for part in parts):
         return None
     text = "\n".join(getattr(part, "text", None) or "" for part in parts)
-    extra = [item for item in [line, *trace_lines] if item and item not in text]
+    extra = [line] if line not in text else []
     if not extra:
         return None
     parts.append(types.Part(text="\n".join(extra)))

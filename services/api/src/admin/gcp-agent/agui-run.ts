@@ -97,8 +97,9 @@ function wantsStoredFile(question: string, reply: string): boolean {
 }
 
 function preferredKind(text: string): StoredAssetKind {
-  const image = /\b(image|images|poster|picture|photo|still|stills)\b/i.test(text);
-  const video = /\b(video|videos|clip|clips)\b/i.test(text);
+  const cleaned = text.replace(/\b(?:not|no)\s+(?:a\s+)?videos?\b/gi, " ");
+  const image = /\b(image|images|poster|picture|photo|still|stills)\b/i.test(cleaned);
+  const video = /\b(video|videos|clip|clips)\b/i.test(cleaned);
   if (image && !video) {
     return "image";
   }

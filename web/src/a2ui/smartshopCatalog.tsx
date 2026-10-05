@@ -43,6 +43,7 @@ function AssetCard({
   const [blob, setBlob] = useState<Blob | null>(null);
   const [url, setUrl] = useState<string | null>(null);
   const [note, setNote] = useState(statusLabel(kind, status));
+  const shownKind = blob ? kindFromBlob(blob, kind) : kind;
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -55,7 +56,7 @@ function AssetCard({
         const next = await getGcpAgentAsset(assetId);
         if (!stopped) {
           setBlob(next);
-          setNote(statusLabel(kind, "REVIEW"));
+          setNote(statusLabel(kindFromBlob(next, kind), "REVIEW"));
         }
       } catch (caught) {
         if (stopped) {
@@ -89,12 +90,12 @@ function AssetCard({
     return () => URL.revokeObjectURL(objectUrl);
   }, [blob]);
 
-  const fileName = fileNameFor(kind, assetId);
+  const fileName = fileNameFor(shownKind, assetId);
 
   return (
     <div className="gcp-asset">
       <p>{note}</p>
-      {url ? <Media kind={kind} url={url} /> : null}
+      {url ? <Media kind={shownKind} url={url} /> : null}
       <div className="gcp-asset-actions">
         <button type="button" disabled={!blob} onClick={() => dialogRef.current?.showModal()}>
           Expand
@@ -113,7 +114,7 @@ function AssetCard({
       </div>
       <dialog ref={dialogRef} className="gcp-expand" onClick={() => dialogRef.current?.close()}>
         <div onClick={(event) => event.stopPropagation()}>
-          {url ? <Media kind={kind} url={url} /> : null}
+          {url ? <Media kind={shownKind} url={url} /> : null}
           <button type="button" onClick={() => dialogRef.current?.close()}>
             Close
           </button>
@@ -121,6 +122,16 @@ function AssetCard({
       </dialog>
     </div>
   );
+}
+
+function kindFromBlob(blob: Blob, declared: "image" | "video"): "image" | "video" {
+  if (blob.type.startsWith("image/")) {
+    return "image";
+  }
+  if (blob.type.startsWith("video/")) {
+    return "video";
+  }
+  return declared;
 }
 
 function Media({ kind, url }: { kind: "image" | "video"; url: string }) {

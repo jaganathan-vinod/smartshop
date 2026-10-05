@@ -1,5 +1,5 @@
 import { SMARTSHOP_AGUI_ACTIVITY, type A2uiMessage } from "@smartshop/shared";
-import { buildA2ui, findAsset, findAssetInValue, readA2ui, type CampaignAsset } from "./surface.js";
+import { assetFromTurn, buildA2ui, readA2ui, surfaceForTurn, visibleReply, type CampaignAsset } from "./surface.js";
 
 export const A2UI_ACTIVITY_TYPE = SMARTSHOP_AGUI_ACTIVITY;
 
@@ -87,7 +87,7 @@ export function translateAdkEvent(event: unknown, state: TranslateState, runId: 
   if (author === "user" || role === "user") {
     return events;
   }
-  const discovered = findAssetInValue(record);
+  const discovered = assetFromTurn(record);
   if (discovered) {
     state.asset = discovered;
   }
@@ -103,8 +103,9 @@ export function translateAdkEvent(event: unknown, state: TranslateState, runId: 
       events.push({ type: "STEP_STARTED", stepName });
     }
     const surface = a2uiFromResponse(part);
-    if (surface && (hasInteractive(surface) || state.specialist === "inventory_agent")) {
-      emitActivity(state, events, runId, surface);
+    const shown = surface ? surfaceForTurn(surface, state.asset) : undefined;
+    if (shown && (hasInteractive(shown) || state.specialist === "inventory_agent")) {
+      emitActivity(state, events, runId, shown);
     }
   }
   const text = textFromParts(parts);
@@ -118,7 +119,7 @@ export function finishTranslation(state: TranslateState, runId: string): AguiEve
   const events: AguiEvent[] = [];
   finishStep(state, events);
   finishMessage(state, events);
-  const asset = state.asset ?? findAsset(state.lastText) ?? state.fallbackAsset;
+  const asset = state.asset ?? state.fallbackAsset;
   if (!state.activitySent && (asset || state.specialist === "inventory_agent") && state.lastText) {
     emitActivity(state, events, runId, buildA2ui(state.lastText, `s_${runId}`, asset));
   }
@@ -126,10 +127,14 @@ export function finishTranslation(state: TranslateState, runId: string): AguiEve
 }
 
 function emitText(state: TranslateState, events: AguiEvent[], runId: string, text: string): void {
-  if (state.sent && (text === state.sent || text.startsWith(state.sent))) {
-    const delta = text.slice(state.sent.length);
-    state.sent = text;
-    state.lastText = text;
+  state.lastText = text;
+  const visible = visibleReply(text);
+  if (!visible) {
+    return;
+  }
+  if (state.sent && (visible === state.sent || visible.startsWith(state.sent))) {
+    const delta = visible.slice(state.sent.length);
+    state.sent = visible;
     if (!delta || !state.messageId) {
       return;
     }
@@ -142,10 +147,9 @@ function emitText(state: TranslateState, events: AguiEvent[], runId: string, tex
   finishMessage(state, events);
   state.messageCount += 1;
   state.messageId = `text-${runId}-${state.messageCount}`;
-  state.sent = text;
-  state.lastText = text;
+  state.sent = visible;
   events.push({ type: "TEXT_MESSAGE_START", messageId: state.messageId, role: "assistant" });
-  events.push({ type: "TEXT_MESSAGE_CONTENT", messageId: state.messageId, delta: text });
+  events.push({ type: "TEXT_MESSAGE_CONTENT", messageId: state.messageId, delta: visible });
 }
 
 function emitActivity(state: TranslateState, events: AguiEvent[], runId: string, messages: A2uiMessage[]): void {
