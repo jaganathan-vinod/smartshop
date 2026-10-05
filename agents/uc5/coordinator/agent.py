@@ -1,12 +1,7 @@
 import os
 
 import httpx
-from a2a.types import AgentCapabilities
-from a2a.types import AgentCard
-from a2a.types import AgentInterface
-from a2a.types import AgentSkill
-from a2a.utils.constants import PROTOCOL_VERSION_CURRENT
-from a2a.utils.constants import TransportProtocol
+from a2a.utils import constants as a2a_constants
 from google.adk.a2a.agent import RemoteA2aAgent
 from google.adk.agents import LlmAgent
 from google.auth import default
@@ -22,12 +17,12 @@ PROJECT = "project-fd286af4-b340-4967-86b"
 class _GoogleAuth(httpx.Auth):
     def sync_auth_flow(self, request):
         request.headers["Authorization"] = f"Bearer {_token()}"
-        request.headers["A2A-Version"] = PROTOCOL_VERSION_CURRENT
+        request.headers["A2A-Version"] = a2a_constants.PROTOCOL_VERSION_CURRENT
         yield request
 
     async def async_auth_flow(self, request):
         request.headers["Authorization"] = f"Bearer {_token()}"
-        request.headers["A2A-Version"] = PROTOCOL_VERSION_CURRENT
+        request.headers["A2A-Version"] = a2a_constants.PROTOCOL_VERSION_CURRENT
         yield request
 
 
@@ -37,36 +32,33 @@ def _token() -> str:
     return credentials.token
 
 
-def _card(name: str, description: str, env_name: str) -> AgentCard:
+def _card_url(env_name: str) -> str:
     engine_id = os.environ[env_name].strip()
-    url = (
+    return (
         f"https://{LOCATION}-aiplatform.googleapis.com/v1beta1/projects/{PROJECT}/"
-        f"locations/{LOCATION}/reasoningEngines/{engine_id}/a2a"
+        f"locations/{LOCATION}/reasoningEngines/{engine_id}/a2a/v1/card"
     )
-    return AgentCard(
-        name=name,
-        description=description,
-        version="1.0.0",
-        default_input_modes=["text/plain"],
-        default_output_modes=["text/plain"],
-        capabilities=AgentCapabilities(streaming=False),
-        skills=[AgentSkill(id=name, name=name, description=description, tags=[name])],
-        supported_interfaces=[
-            AgentInterface(
-                url=url,
-                protocol_binding=TransportProtocol.HTTP_JSON,
-                protocol_version=PROTOCOL_VERSION_CURRENT,
-            )
-        ],
-    )
+
+
+class _AuthClient(httpx.AsyncClient):
+    def __init__(self):
+        super().__init__(auth=_GoogleAuth(), timeout=120)
+
+    def __deepcopy__(self, memo):
+        copied = _AuthClient()
+        memo[id(self)] = copied
+        return copied
+
+    def __reduce__(self):
+        return (_AuthClient, ())
 
 
 def _remote(name: str, description: str, env_name: str) -> RemoteA2aAgent:
     return RemoteA2aAgent(
         name=name,
         description=description,
-        agent_card=_card(name, description, env_name),
-        httpx_client=httpx.AsyncClient(auth=_GoogleAuth(), timeout=120),
+        agent_card=_card_url(env_name),
+        httpx_client=_AuthClient(),
     )
 
 
